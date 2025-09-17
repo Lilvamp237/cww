@@ -4,7 +4,7 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { ReactNode } from 'react';
 
-import { Navbar } from '@/components/ui/navbar'; // We'll create this next
+import { Navbar } from '@/components/navbar'; // We'll create this next
 
 export default async function DashboardLayout({
   children,
