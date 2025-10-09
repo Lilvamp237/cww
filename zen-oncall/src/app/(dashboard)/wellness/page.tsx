@@ -1,8 +1,8 @@
 // src/app/(dashboard)/wellness/page.tsx
 'use client';
 
-import { useState, useEffect } from 'react';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { useState, useEffect, useCallback } from 'react';
+import { createClientComponentClient } from '@/lib/supabase/client';
 import { format, parseISO } from 'date-fns';
 import { Smile, Frown, Meh, Laugh, Angry } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -41,7 +41,7 @@ export default function WellnessPage() {
 
   const hasLoggedToday = recentLogs.some(log => log.log_date === today);
 
-  const fetchRecentLogs = async () => {
+  const fetchRecentLogs = useCallback(async () => {
     const { data, error } = await supabase
       .from('mood_logs')
       .select('*')
@@ -53,11 +53,11 @@ export default function WellnessPage() {
     } else {
       setRecentLogs(data || []);
     }
-  };
+  }, [supabase]);
 
   useEffect(() => {
     fetchRecentLogs();
-  }, []);
+  }, [fetchRecentLogs]);
 
   const handleSubmitLog = async () => {
     if (!selectedMood || !selectedEnergy) {
@@ -109,7 +109,7 @@ export default function WellnessPage() {
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Today's Check-in</CardTitle>
+            <CardTitle>Today&apos;s Check-in</CardTitle>
             <CardDescription>{format(new Date(), 'PPP')}</CardDescription>
           </CardHeader>
           <CardContent>
@@ -133,7 +133,7 @@ export default function WellnessPage() {
                 </div>
 
                 <div>
-                  <label className="font-semibold">What's your energy level?</label>
+                  <label className="font-semibold">What&apos;s your energy level?</label>
                   <div className="flex items-center justify-between pt-2 space-x-2">
                     <span className="text-xs text-muted-foreground">Low</span>
                     {[1, 2, 3, 4, 5].map(level => (

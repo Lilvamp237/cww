@@ -1,20 +1,18 @@
 // src/app/(dashboard)/scheduler/page.tsx
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Calendar } from '@/components/ui/calendar';
 import { Button } from '@/components/ui/button';
-import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createClientComponentClient } from '@/lib/supabase/client';
 import { format, isSameDay, parseISO, startOfDay } from 'date-fns';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { CalendarIcon, PlusCircleIcon, EditIcon, Trash2Icon } from 'lucide-react';
-import { type DayPicker } from 'react-day-picker'; // For modifier styles
-import { Day } from 'react-day-picker'; // Make sure to add 'Day' to this import
 
 
 // Define a type for our Shift object
@@ -48,7 +46,7 @@ export default function SchedulerPage() {
   const [error, setError] = useState<string | null>(null);
 
   // Fetch shifts on component mount
-  const fetchShifts = async () => {
+  const fetchShifts = useCallback(async () => {
     setLoading(true);
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
@@ -57,11 +55,11 @@ export default function SchedulerPage() {
       else setShifts(data || []);
     }
     setLoading(false);
-  };
+  }, [supabase]);
 
   useEffect(() => {
     fetchShifts();
-  }, []);
+  }, [fetchShifts]);
 
   // --- NEW: Function to open the dialog for editing ---
   const handleEditClick = (shift: Shift) => {
@@ -118,8 +116,15 @@ export default function SchedulerPage() {
       const { error } = await supabase.from('shifts').update(shiftData).match({ id: selectedShift!.id });
       dbError = error;
     } else {
-      const { data: { user } } = await supabase.auth.getUser();
-      const { error } = await supabase.from('shifts').insert({ ...shiftData, user_id: user!.id });
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+      
+      if (userError || !user) {
+        setError('You must be logged in to create a shift. Please refresh the page and try again.');
+        setLoading(false);
+        return;
+      }
+      
+      const { error } = await supabase.from('shifts').insert({ ...shiftData, user_id: user.id });
       dbError = error;
     }
 
@@ -149,15 +154,11 @@ export default function SchedulerPage() {
     selectedDate && isSameDay(parseISO(shift.start_time), selectedDate)
   );
 
-  // --- NEW: Create modifiers for the calendar ---
+  // --- Create modifiers for the calendar to highlight days with shifts ---
   const shiftDays = shifts.map(shift => startOfDay(parseISO(shift.start_time)));
-  const modifiers: DayPicker['modifiers'] = { hasShift: shiftDays };
-  const modifiersStyles: DayPicker['modifiersStyles'] = {
-    hasShift: {
-      fontWeight: 'bold',
-      color: 'white',
-      backgroundColor: 'hsl(var(--primary))',
-    },
+  const modifiers = { hasShift: shiftDays };
+  const modifiersClassNames = {
+    hasShift: 'bg-primary text-primary-foreground font-bold hover:bg-primary hover:text-primary-foreground'
   };
 
   return (
@@ -171,14 +172,14 @@ export default function SchedulerPage() {
             <CardTitle>Calendar</CardTitle>
           </CardHeader>
           <CardContent>
-            {/* UPDATED CALENDAR COMPONENT */}
+            {/* Calendar with highlighted shift days */}
             <Calendar
               mode="single"
               selected={selectedDate}
               onSelect={setSelectedDate}
               className="rounded-md border"
               modifiers={modifiers}
-              modifiersStyles={modifiersStyles}
+              modifiersClassNames={modifiersClassNames}
               initialFocus
             />
           </CardContent>
