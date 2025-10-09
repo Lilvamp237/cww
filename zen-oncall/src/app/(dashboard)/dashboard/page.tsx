@@ -1,6 +1,4 @@
 // src/app/(dashboard)/dashboard/page.tsx
-import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import Link from 'next/link';
 import { differenceInHours, subDays, startOfDay, format, eachWeekOfInterval, endOfWeek, isWithinInterval } from 'date-fns';
@@ -11,13 +9,14 @@ import { CalendarIcon, HeartPulseIcon } from 'lucide-react';
 import { calculateBurnoutScore } from '@/lib/burnout';
 import { MoodChart } from '@/components/charts/mood-chart';
 import { WorkLifeChart } from '@/components/charts/work-life-chart';
+import { createServerClient } from '@/lib/supabase/server';
 
 // Define types for data fetched from Supabase
 type Shift = { start_time: string; end_time: string; };
 type MoodLog = { mood_score: number; energy_level: number; log_date: string; };
 
 export default async function DashboardPage() {
-  const supabase = createServerComponentClient({ cookies });
+  const supabase = await createServerClient();
   const { data: { session } } = await supabase.auth.getSession();
 
   if (!session) {

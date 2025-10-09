@@ -1,17 +1,16 @@
 // src/app/(dashboard)/layout.tsx
-import { createServerComponentClient } from '@supabase/auth-helpers-nextjs';
-import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { ReactNode } from 'react';
 
-import { Navbar } from '@/components/navbar'; // We'll create this next
+import { Navbar } from '@/components/navbar';
+import { createServerClient } from '@/lib/supabase/server';
 
 export default async function DashboardLayout({
   children,
 }: {
   children: ReactNode;
 }) {
-  const supabase = createServerComponentClient({ cookies });
+  const supabase = await createServerClient();
   const {
     data: { session },
   } = await supabase.auth.getSession();

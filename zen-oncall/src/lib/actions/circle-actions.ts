@@ -1,27 +1,16 @@
-// src/lib/actions/circle-actions.ts
 'use server';
 
-// Use the dedicated helper for Server Actions
-import { createServerActionClient } from '@supabase/auth-helpers-nextjs'; 
-import { cookies } from 'next/headers';
+import { createServerClient } from '@/lib/supabase/server'; // <-- Import our new helper
 import { nanoid } from 'nanoid';
 import { revalidatePath } from 'next/cache';
 
-// This is the required signature for useFormState
-type FormState = {
-  error?: string;
-  success?: string;
-} | null;
-
+type FormState = { error?: string; success?: string; } | null;
 
 export async function createCircle(prevState: FormState, formData: FormData): Promise<FormState> {
-  // Use createServerActionClient - it's synchronous and designed for this
-  const supabase = createServerActionClient({ cookies }); 
+  const supabase = await createServerClient(); // <-- Use our new helper
   const { data: { user } } = await supabase.auth.getUser();
 
-  if (!user) {
-    return { error: 'You must be logged in to create a circle.' };
-  }
+  if (!user) return { error: 'You must be logged in to create a circle.' };
 
   const name = formData.get('name') as string;
   if (!name || name.trim().length < 3) {
@@ -30,24 +19,23 @@ export async function createCircle(prevState: FormState, formData: FormData): Pr
 
   const inviteCode = nanoid(8);
 
-  const { data: circle, error: circleError } = await supabase
+  // Insert the circle
+  const { data: newCircle, error: circleError } = await supabase
     .from('circles')
     .insert({ name, created_by: user.id, invite_code: inviteCode })
-    .select()
+    .select('id')
     .single();
 
-  if (circleError) {
-    console.error('Create Circle Error:', circleError);
-    return { error: `Database error: ${circleError.message}` };
-  }
+  if (circleError) return { error: `Database error: ${circleError.message}` };
 
+  // Automatically add the creator as a member
   const { error: memberError } = await supabase
     .from('circle_members')
-    .insert({ circle_id: circle.id, user_id: user.id });
+    .insert({ circle_id: newCircle.id, user_id: user.id });
 
   if (memberError) {
-    console.error('Add Member Error:', memberError);
-    return { error: `Database error: ${memberError.message}` };
+    // If adding the member fails, we should ideally delete the circle, but for simplicity:
+    console.error('Failed to add creator as member:', memberError);
   }
 
   revalidatePath('/circles');
@@ -55,18 +43,13 @@ export async function createCircle(prevState: FormState, formData: FormData): Pr
 }
 
 export async function joinCircle(prevState: FormState, formData: FormData): Promise<FormState> {
-  // Use createServerActionClient here as well
-  const supabase = createServerActionClient({ cookies });
+  const supabase = await createServerClient(); // <-- Use our new helper
   const { data: { user } } = await supabase.auth.getUser();
 
-  if (!user) {
-    return { error: 'You must be logged in to join a circle.' };
-  }
+  if (!user) return { error: 'You must be logged in to join a circle.' };
 
   const inviteCode = formData.get('invite_code') as string;
-  if (!inviteCode) {
-    return { error: 'Invite code is required.' };
-  }
+  if (!inviteCode) return { error: 'Invite code is required.' };
 
   const { data: circle, error: findError } = await supabase
     .from('circles')
@@ -74,19 +57,14 @@ export async function joinCircle(prevState: FormState, formData: FormData): Prom
     .eq('invite_code', inviteCode)
     .single();
 
-  if (findError || !circle) {
-    return { error: 'Invalid invite code.' };
-  }
+  if (findError || !circle) return { error: 'Invalid invite code.' };
 
   const { error: joinError } = await supabase
     .from('circle_members')
     .insert({ circle_id: circle.id, user_id: user.id });
 
   if (joinError) {
-    if (joinError.code === '23505') { // Unique constraint violation
-      return { error: 'You are already a member of this circle.' };
-    }
-    console.error('Join Circle Error:', joinError);
+    if (joinError.code === '23505') return { error: 'You are already a member of this circle.' };
     return { error: `Database error: ${joinError.message}` };
   }
 

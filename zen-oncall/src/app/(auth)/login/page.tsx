@@ -3,7 +3,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
+import { createClientComponentClient } from '@/lib/supabase/client';
 import Link from 'next/link';
 
 import { Button } from '@/components/ui/button';
@@ -55,7 +55,7 @@ export default function LoginPage() {
             {error && <p className="text-red-500 text-sm text-center">{error}</p>}
             <Button type="submit" className="w-full">Sign In</Button>
             <p className="text-center text-sm text-gray-600">
-              Don't have an account?{' '}
+              Don&apos;t have an account?{' '}
               <Link href="/signup" className="font-semibold text-blue-600 hover:underline">
                 Sign Up
               </Link>
