@@ -10,6 +10,14 @@ import {
 } from '@/components/ui/card';
 import { UsersIcon } from 'lucide-react';
 import { InviteCodeCard } from './circle-actions';
+import { CircleFeatures } from './circle-features';
+
+type CircleMember = {
+  id: string;
+  full_name: string | null;
+  share_shifts: boolean;
+  share_status: boolean;
+};
 
 type CircleWithMembers = {
   id: number;
@@ -48,33 +56,50 @@ export default async function CircleDetailPage({
     notFound();
   }
 
-  // Get the member user IDs
-  const { data: memberIds, error: membersError } = await supabase
+  // Get current user
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user) notFound();
+
+  // Get the member user IDs with privacy settings
+  const { data: memberData } = await supabase
     .from('circle_members')
-    .select('user_id')
+    .select('user_id, share_shifts, share_status')
     .eq('circle_id', circleIdNumber);
 
   console.log('Circle ID:', circleIdNumber);
   console.log('Circle data:', circle);
-  console.log('Member IDs:', memberIds);
+  console.log('Member IDs:', memberData);
 
   // Get the profiles for those user IDs
-  let profiles: Array<{ id: string; full_name: string | null }> = [];
-  if (memberIds && memberIds.length > 0) {
-    const userIds = memberIds.map(m => m.user_id);
+  let profiles: CircleMember[] = [];
+  if (memberData && memberData.length > 0) {
+    const userIds = memberData.map(m => m.user_id);
     const { data: profileData } = await supabase
       .from('profiles')
       .select('id, full_name')
       .in('id', userIds);
     
-    profiles = profileData || [];
+    if (profileData) {
+      profiles = profileData.map(profile => {
+        const memberSettings = memberData.find(m => m.user_id === profile.id);
+        return {
+          id: profile.id,
+          full_name: profile.full_name,
+          share_shifts: memberSettings?.share_shifts ?? true,
+          share_status: memberSettings?.share_status ?? true,
+        };
+      });
+    }
   }
 
   // Transform the data to match the expected type
   const circleWithMembers: CircleWithMembers = {
     ...circle,
     circle_members: profiles.map(profile => ({
-      profiles: profile
+      profiles: {
+        id: profile.id,
+        full_name: profile.full_name,
+      }
     }))
   };
 
@@ -137,7 +162,7 @@ export default async function CircleDetailPage({
           </CardContent>
         </Card>
 
-        {/* Quick Actions Card */}
+        {/* Quick Actions Card - Kept for reference */}
         <Card>
           <CardHeader>
             <CardTitle>Quick Actions</CardTitle>
@@ -146,21 +171,19 @@ export default async function CircleDetailPage({
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
-            <button className="w-full px-4 py-3 text-left rounded-lg border hover:bg-muted/50 transition-colors">
-              <div className="font-medium">📅 View Team Schedule</div>
-              <div className="text-sm text-muted-foreground">See everyone&apos;s shifts</div>
-            </button>
-            <button className="w-full px-4 py-3 text-left rounded-lg border hover:bg-muted/50 transition-colors">
-              <div className="font-medium">💬 Team Chat</div>
-              <div className="text-sm text-muted-foreground">Coordinate with your team</div>
-            </button>
-            <button className="w-full px-4 py-3 text-left rounded-lg border hover:bg-muted/50 transition-colors">
-              <div className="font-medium">📊 Circle Analytics</div>
-              <div className="text-sm text-muted-foreground">View team wellness trends</div>
-            </button>
+            <div className="text-sm text-muted-foreground">
+              Use the tabs below to view schedules, post announcements, and manage shift swaps.
+            </div>
           </CardContent>
         </Card>
       </div>
+
+      {/* Enhanced Circle Features */}
+      <CircleFeatures
+        circleId={circleWithMembers.id}
+        members={profiles}
+        currentUserId={user.id}
+      />
     </div>
   );
 }
