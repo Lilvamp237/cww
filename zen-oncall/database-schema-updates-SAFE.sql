@@ -1,11 +1,26 @@
--- DATABASE SCHEMA UPDATES FOR CARESYNC
--- Run these SQL commands in your Supabase SQL Editor
+-- SAFE DATABASE SCHEMA UPDATES FOR ZEN-ONCALL
+-- This version checks if things exist before creating them
+-- Safe to run multiple times without errors
 
--- 1. Add category column to shifts table
-ALTER TABLE shifts ADD COLUMN IF NOT EXISTS category TEXT DEFAULT 'work';
-ALTER TABLE shifts ADD COLUMN IF NOT EXISTS color TEXT DEFAULT '#3b82f6';
+-- 1. Add category column to shifts table (if not exists)
+DO $$ 
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'shifts' AND column_name = 'category'
+    ) THEN
+        ALTER TABLE shifts ADD COLUMN category TEXT DEFAULT 'work';
+    END IF;
+    
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'shifts' AND column_name = 'color'
+    ) THEN
+        ALTER TABLE shifts ADD COLUMN color TEXT DEFAULT '#3b82f6';
+    END IF;
+END $$;
 
--- 2. Create personal_tasks table
+-- 2. Create personal_tasks table (if not exists)
 CREATE TABLE IF NOT EXISTS personal_tasks (
   id BIGSERIAL PRIMARY KEY,
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -21,7 +36,7 @@ CREATE TABLE IF NOT EXISTS personal_tasks (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 3. Create habits table
+-- 3. Create habits table (if not exists)
 CREATE TABLE IF NOT EXISTS habits (
   id BIGSERIAL PRIMARY KEY,
   user_id UUID NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -36,7 +51,7 @@ CREATE TABLE IF NOT EXISTS habits (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 4. Create habit_logs table
+-- 4. Create habit_logs table (if not exists)
 CREATE TABLE IF NOT EXISTS habit_logs (
   id BIGSERIAL PRIMARY KEY,
   habit_id BIGINT NOT NULL REFERENCES habits(id) ON DELETE CASCADE,
@@ -48,7 +63,7 @@ CREATE TABLE IF NOT EXISTS habit_logs (
   UNIQUE(habit_id, log_date)
 );
 
--- 5. Create circle_announcements table
+-- 5. Create circle_announcements table (if not exists)
 CREATE TABLE IF NOT EXISTS circle_announcements (
   id BIGSERIAL PRIMARY KEY,
   circle_id BIGINT NOT NULL REFERENCES circles(id) ON DELETE CASCADE,
@@ -60,7 +75,7 @@ CREATE TABLE IF NOT EXISTS circle_announcements (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 6. Create shift_swaps table
+-- 6. Create shift_swaps table (if not exists)
 CREATE TABLE IF NOT EXISTS shift_swaps (
   id BIGSERIAL PRIMARY KEY,
   circle_id BIGINT NOT NULL REFERENCES circles(id) ON DELETE CASCADE,
@@ -76,11 +91,25 @@ CREATE TABLE IF NOT EXISTS shift_swaps (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 7. Add privacy settings to circle_members table
-ALTER TABLE circle_members ADD COLUMN IF NOT EXISTS share_shifts BOOLEAN DEFAULT TRUE;
-ALTER TABLE circle_members ADD COLUMN IF NOT EXISTS share_status BOOLEAN DEFAULT TRUE;
+-- 7. Add privacy settings to circle_members table (if not exists)
+DO $$ 
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'circle_members' AND column_name = 'share_shifts'
+    ) THEN
+        ALTER TABLE circle_members ADD COLUMN share_shifts BOOLEAN DEFAULT TRUE;
+    END IF;
+    
+    IF NOT EXISTS (
+        SELECT 1 FROM information_schema.columns 
+        WHERE table_name = 'circle_members' AND column_name = 'share_status'
+    ) THEN
+        ALTER TABLE circle_members ADD COLUMN share_status BOOLEAN DEFAULT TRUE;
+    END IF;
+END $$;
 
--- 8. Create indexes for better performance
+-- 8. Create indexes for better performance (IF NOT EXISTS)
 CREATE INDEX IF NOT EXISTS idx_personal_tasks_user_date ON personal_tasks(user_id, due_date);
 CREATE INDEX IF NOT EXISTS idx_personal_tasks_completed ON personal_tasks(user_id, completed);
 CREATE INDEX IF NOT EXISTS idx_habits_user_active ON habits(user_id, active);
@@ -90,14 +119,14 @@ CREATE INDEX IF NOT EXISTS idx_shift_swaps_circle ON shift_swaps(circle_id, crea
 CREATE INDEX IF NOT EXISTS idx_shift_swaps_requester ON shift_swaps(requester_id, status);
 CREATE INDEX IF NOT EXISTS idx_shift_swaps_target ON shift_swaps(target_user_id, status);
 
--- 9. Enable Row Level Security
+-- 9. Enable Row Level Security (safe to run multiple times)
 ALTER TABLE personal_tasks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE habits ENABLE ROW LEVEL SECURITY;
 ALTER TABLE habit_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE circle_announcements ENABLE ROW LEVEL SECURITY;
 ALTER TABLE shift_swaps ENABLE ROW LEVEL SECURITY;
 
--- 10. Create RLS Policies for personal_tasks (with DROP IF EXISTS for safety)
+-- 10. Create RLS Policies for personal_tasks (with DROP IF EXISTS)
 DROP POLICY IF EXISTS "Users can view their own tasks" ON personal_tasks;
 CREATE POLICY "Users can view their own tasks" ON personal_tasks
   FOR SELECT USING (auth.uid() = user_id);
@@ -114,7 +143,7 @@ DROP POLICY IF EXISTS "Users can delete their own tasks" ON personal_tasks;
 CREATE POLICY "Users can delete their own tasks" ON personal_tasks
   FOR DELETE USING (auth.uid() = user_id);
 
--- 11. Create RLS Policies for habits (with DROP IF EXISTS for safety)
+-- 11. Create RLS Policies for habits (with DROP IF EXISTS)
 DROP POLICY IF EXISTS "Users can view their own habits" ON habits;
 CREATE POLICY "Users can view their own habits" ON habits
   FOR SELECT USING (auth.uid() = user_id);
@@ -131,7 +160,7 @@ DROP POLICY IF EXISTS "Users can delete their own habits" ON habits;
 CREATE POLICY "Users can delete their own habits" ON habits
   FOR DELETE USING (auth.uid() = user_id);
 
--- 12. Create RLS Policies for habit_logs (with DROP IF EXISTS for safety)
+-- 12. Create RLS Policies for habit_logs (with DROP IF EXISTS)
 DROP POLICY IF EXISTS "Users can view their own habit logs" ON habit_logs;
 CREATE POLICY "Users can view their own habit logs" ON habit_logs
   FOR SELECT USING (auth.uid() = user_id);
@@ -148,7 +177,7 @@ DROP POLICY IF EXISTS "Users can delete their own habit logs" ON habit_logs;
 CREATE POLICY "Users can delete their own habit logs" ON habit_logs
   FOR DELETE USING (auth.uid() = user_id);
 
--- 13. Create RLS Policies for circle_announcements (with DROP IF EXISTS for safety)
+-- 13. Create RLS Policies for circle_announcements (with DROP IF EXISTS)
 DROP POLICY IF EXISTS "Circle members can view announcements" ON circle_announcements;
 CREATE POLICY "Circle members can view announcements" ON circle_announcements
   FOR SELECT USING (
@@ -178,7 +207,7 @@ DROP POLICY IF EXISTS "Authors can delete their own announcements" ON circle_ann
 CREATE POLICY "Authors can delete their own announcements" ON circle_announcements
   FOR DELETE USING (auth.uid() = author_id);
 
--- 14. Create RLS Policies for shift_swaps (with DROP IF EXISTS for safety)
+-- 14. Create RLS Policies for shift_swaps (with DROP IF EXISTS)
 DROP POLICY IF EXISTS "Circle members can view shift swaps" ON shift_swaps;
 CREATE POLICY "Circle members can view shift swaps" ON shift_swaps
   FOR SELECT USING (
@@ -210,7 +239,7 @@ DROP POLICY IF EXISTS "Requester can delete their shift swaps" ON shift_swaps;
 CREATE POLICY "Requester can delete their shift swaps" ON shift_swaps
   FOR DELETE USING (auth.uid() = requester_id);
 
--- 15. Create function to update updated_at timestamp
+-- 15. Create function to update updated_at timestamp (with OR REPLACE)
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
 BEGIN
@@ -219,7 +248,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- 16. Create triggers for updated_at columns (drop and recreate for safety)
+-- 16. Create triggers for updated_at columns (drop and recreate)
 DROP TRIGGER IF EXISTS update_personal_tasks_updated_at ON personal_tasks;
 CREATE TRIGGER update_personal_tasks_updated_at BEFORE UPDATE ON personal_tasks
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
@@ -235,3 +264,11 @@ CREATE TRIGGER update_announcements_updated_at BEFORE UPDATE ON circle_announcem
 DROP TRIGGER IF EXISTS update_shift_swaps_updated_at ON shift_swaps;
 CREATE TRIGGER update_shift_swaps_updated_at BEFORE UPDATE ON shift_swaps
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
+
+-- Success message
+DO $$ 
+BEGIN
+  RAISE NOTICE '✓ Schema updates completed successfully!';
+  RAISE NOTICE '✓ All tables, indexes, and policies are up to date.';
+  RAISE NOTICE '✓ Safe to run multiple times - no errors!';
+END $$;
