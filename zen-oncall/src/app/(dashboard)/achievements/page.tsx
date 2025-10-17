@@ -290,23 +290,53 @@ export default function AchievementsPage() {
               <div className="grid gap-4 md:grid-cols-3">
                 {lockedBadges.map((badge) => {
                   const progress = getProgressForBadge(badge);
+                  const currentValue = (() => {
+                    switch (badge.requirement_type) {
+                      case 'daily_streak':
+                        return wellnessPoints.daily_streak;
+                      case 'habits_completed':
+                        return wellnessPoints.total_habits_completed;
+                      case 'mood_streak':
+                        return wellnessPoints.daily_streak;
+                      default:
+                        return 0;
+                    }
+                  })();
+                  
                   return (
                     <div
                       key={badge.id}
-                      className="p-4 border rounded-lg bg-muted/50 opacity-75"
+                      className="p-4 border-2 border-dashed border-slate-300 rounded-lg bg-gradient-to-br from-slate-50 to-slate-100 hover:border-cyan-400 hover:shadow-lg transition-all duration-300"
                     >
-                      <div className="text-center space-y-2">
-                        <div className="text-4xl grayscale">{badge.icon}</div>
-                        <h3 className="font-semibold">{badge.name}</h3>
-                        <p className="text-sm text-muted-foreground">
+                      <div className="text-center space-y-3">
+                        <div className="text-4xl grayscale opacity-50 hover:grayscale-0 hover:opacity-100 transition-all duration-300">
+                          {badge.icon}
+                        </div>
+                        <h3 className="font-semibold text-slate-800">{badge.name}</h3>
+                        <p className="text-sm text-slate-600">
                           {badge.description}
                         </p>
-                        <Badge variant="outline">{badge.category}</Badge>
-                        <div className="space-y-1">
-                          <Progress value={progress} />
-                          <p className="text-xs text-muted-foreground">
-                            {progress.toFixed(0)}% complete
-                          </p>
+                        <Badge variant="outline" className="bg-white">{badge.category}</Badge>
+                        <div className="space-y-2 pt-2">
+                          <div className="relative">
+                            <Progress 
+                              value={progress} 
+                              className="h-3 bg-slate-200"
+                            />
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <span className="text-xs font-bold text-white drop-shadow-md">
+                                {progress.toFixed(0)}%
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex justify-between items-center text-xs">
+                            <span className="text-slate-500">
+                              {currentValue} / {badge.requirement_value}
+                            </span>
+                            <span className="font-bold text-cyan-600">
+                              {badge.requirement_value - currentValue} to go!
+                            </span>
+                          </div>
                         </div>
                       </div>
                     </div>

@@ -9,7 +9,7 @@ import { createClientComponentClient } from '@supabase/auth-helpers-nextjs';
 import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetTrigger } from '@/components/ui/sheet';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { MenuIcon, CalendarIcon, UsersIcon, HeartPulseIcon, MessageSquare, Activity, Trophy, Settings, AlertTriangle, BellIcon, Sparkles, BarChart3Icon } from 'lucide-react';
+import { MenuIcon, CalendarIcon, UsersIcon, HeartPulseIcon, MessageSquare, Activity, Trophy, Settings, AlertTriangle, BellIcon, Sparkles, BarChart3Icon, Heart } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { useState, useEffect } from 'react';
 
@@ -66,6 +66,7 @@ export function Navbar({ user }: NavbarProps) {
     { href: '/dashboard', label: 'Dashboard', icon: HeartPulseIcon },
     { href: '/scheduler', label: 'Scheduler', icon: CalendarIcon },
     { href: '/wellness-enhanced', label: 'Wellness+', icon: Activity },
+    { href: '/menstrual-health', label: 'Cycle Tracker', icon: Heart },
     { href: '/circles', label: 'Circles', icon: UsersIcon },
     { href: '/burnout', label: 'Burnout Risk', icon: AlertTriangle },
     { href: '/recommendations', label: 'For You', icon: Sparkles },
@@ -83,7 +84,7 @@ export function Navbar({ user }: NavbarProps) {
             <div className="w-8 h-8 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-lg flex items-center justify-center shadow-md group-hover:shadow-lg transition-all">
               <HeartPulseIcon className="w-5 h-5 text-white" />
             </div>
-            <span className="bg-gradient-to-r from-cyan-600 to-blue-600 bg-clip-text text-transparent">ZenOnCall</span>
+            <span className="bg-gradient-to-r from-cyan-600 to-blue-600 bg-clip-text text-transparent">CareSync</span>
           </Link>
           {navItems.map((item) => (
             <Link 

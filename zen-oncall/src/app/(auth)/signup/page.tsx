@@ -69,7 +69,7 @@ export default function SignUpPage() {
                 <li className="font-medium">Check your email inbox</li>
                 <li className="font-medium">Click the confirmation link</li>
                 <li className="font-medium">You&apos;ll be redirected back here</li>
-                <li className="font-medium">Start using Zen OnCall! 🎉</li>
+                <li className="font-medium">Start using CareSync! 🎉</li>
               </ol>
             </div>
             <p className="text-sm text-center text-slate-600 bg-slate-50 rounded-lg p-3">
@@ -108,7 +108,7 @@ export default function SignUpPage() {
             Create Account 🚀
           </CardTitle>
           <CardDescription className="text-base text-slate-600">
-            Join the Zen OnCall community and start your wellness journey
+            Join the CareSync community and start your wellness journey
           </CardDescription>
         </CardHeader>
         <CardContent className="pt-8">

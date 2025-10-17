@@ -24,7 +24,7 @@ export default function Home() {
           {/* Title */}
           <div className="space-y-4">
             <h1 className="text-7xl font-bold bg-gradient-to-r from-cyan-600 via-blue-600 to-violet-600 bg-clip-text text-transparent drop-shadow-sm">
-              Zen OnCall
+              CareSync
             </h1>
             <p className="text-3xl text-slate-600 font-medium max-w-3xl mx-auto">
               Your AI-powered wellness companion for healthcare heroes 💙
@@ -122,7 +122,7 @@ export default function Home() {
           Built with 💙 for healthcare heroes everywhere
         </p>
         <p className="text-sm mt-2 opacity-70">
-          © 2025 Zen OnCall. Stay well, stay balanced.
+          © 2025 CareSync. Stay well, stay balanced.
         </p>
       </footer>
     </div>

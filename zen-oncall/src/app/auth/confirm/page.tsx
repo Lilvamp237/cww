@@ -27,7 +27,7 @@ export default function ConfirmPage() {
             Email Confirmed! 🎉
           </CardTitle>
           <CardDescription className="text-base text-gray-600">
-            Your email has been successfully verified. You can now access all features of Zen_OnCall.
+            Your email has been successfully verified. You can now access all features of CareSync.
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
