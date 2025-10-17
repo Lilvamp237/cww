@@ -118,7 +118,7 @@ export default async function DashboardPage() {
           <CardContent>
             <div className={`text-2xl font-bold ${burnoutRisk.color}`}>{burnoutRisk.level}</div>
             <p className="text-xs text-muted-foreground">{burnoutRisk.message}</p>
-            <Button asChild variant="outline" className="mt-4 w-full"><Link href="/wellness">View Trends</Link></Button>
+            <Button asChild variant="outline" className="mt-4 w-full"><Link href="/burnout">View Full Analysis</Link></Button>
           </CardContent>
         </Card>
       </div>

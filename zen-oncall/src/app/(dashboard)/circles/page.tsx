@@ -14,23 +14,43 @@ export default async function CirclesPage() {
     return <div>Please log in to view circles.</div>;
   }
 
-  // Fetch circles where the user is a member
-  const { data: membershipData, error } = await supabase
+  // Fetch circles where the user is a member - FIXED QUERY
+  const { data: membershipData, error: membershipError } = await supabase
     .from('circle_members')
-    .select(`
-      circles (
-        id,
-        name
-      )
-    `)
+    .select('circle_id')
     .eq('user_id', user.id);
 
-  if (error) {
-    console.error('Error fetching circles:', error.message);
+  console.log('User ID:', user.id);
+  console.log('Membership data:', membershipData);
+  console.log('Membership error:', membershipError);
+
+  if (membershipError) {
+    console.error('Error fetching memberships:', membershipError);
   }
 
-  // Transform the data to get just the circles
-  const userCircles = membershipData?.map(item => item.circles).filter(Boolean).flat() || [];
+  // Get the circle IDs
+  const circleIds = membershipData?.map(m => m.circle_id) || [];
+  console.log('Circle IDs:', circleIds);
+
+  // Fetch the actual circle details
+  let userCircles: any[] = [];
+  if (circleIds.length > 0) {
+    const { data: circlesData, error: circlesError } = await supabase
+      .from('circles')
+      .select('id, name, invite_code')
+      .in('id', circleIds);
+
+    console.log('Circles data:', circlesData);
+    console.log('Circles error:', circlesError);
+
+    if (circlesError) {
+      console.error('Error fetching circles:', circlesError);
+    } else {
+      userCircles = circlesData || [];
+    }
+  }
+  
+  console.log('Final userCircles:', userCircles);
 
   return (
     <div className="space-y-6">

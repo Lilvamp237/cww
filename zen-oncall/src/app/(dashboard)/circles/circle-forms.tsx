@@ -1,6 +1,7 @@
 'use client';
 
-import { useFormState, useFormStatus } from 'react-dom';
+import { useActionState } from 'react';
+import { useFormStatus } from 'react-dom';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { createCircle, joinCircle } from '@/lib/actions/circle-actions';
@@ -12,7 +13,7 @@ function SubmitButton({ children }: { children: React.ReactNode }) {
 }
 
 export function CreateCircleForm() {
-  const [state, formAction] = useFormState(createCircle, null);
+  const [state, formAction] = useActionState(createCircle, null);
   const formRef = useRef<HTMLFormElement>(null);
 
   // Reset the form on successful submission
@@ -33,7 +34,7 @@ export function CreateCircleForm() {
 }
 
 export function JoinCircleForm() {
-  const [state, formAction] = useFormState(joinCircle, null);
+  const [state, formAction] = useActionState(joinCircle, null);
   const formRef = useRef<HTMLFormElement>(null);
 
   useEffect(() => {
