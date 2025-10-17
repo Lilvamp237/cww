@@ -40,8 +40,8 @@ export async function analyzeUserPatterns(userId: string): Promise<UserPattern |
       .from('shifts')
       .select('*')
       .eq('user_id', userId)
-      .gte('shift_date', thirtyDaysAgo.toISOString())
-      .order('shift_date', { ascending: true });
+      .gte('start_time', thirtyDaysAgo.toISOString())
+      .order('start_time', { ascending: true });
 
     // Get mood logs from last 30 days
     const { data: moodLogs } = await supabase
@@ -63,13 +63,13 @@ export async function analyzeUserPatterns(userId: string): Promise<UserPattern |
     }
 
     // Calculate patterns
-    const nightShifts = shifts.filter((s) => s.shift_type === 'Night');
-    const dayShifts = shifts.filter((s) => s.shift_type === 'Day');
+    const nightShifts = shifts.filter((s) => s.shift_type?.toLowerCase() === 'night');
+    const dayShifts = shifts.filter((s) => s.shift_type?.toLowerCase() === 'day');
 
     // Mood after night shifts
     const moodsAfterNightShift = nightShifts
       .map((shift) => {
-        const shiftDate = new Date(shift.shift_date).toDateString();
+        const shiftDate = new Date(shift.start_time).toDateString();
         const mood = moodLogs.find((m) => new Date(m.log_date).toDateString() === shiftDate);
         return mood?.mood_score || 0;
       })
@@ -78,7 +78,7 @@ export async function analyzeUserPatterns(userId: string): Promise<UserPattern |
     // Mood after day shifts
     const moodsAfterDayShift = dayShifts
       .map((shift) => {
-        const shiftDate = new Date(shift.shift_date).toDateString();
+        const shiftDate = new Date(shift.start_time).toDateString();
         const mood = moodLogs.find((m) => new Date(m.log_date).toDateString() === shiftDate);
         return mood?.mood_score || 0;
       })
@@ -99,18 +99,18 @@ export async function analyzeUserPatterns(userId: string): Promise<UserPattern |
 
     // Consecutive work days
     const recentShifts = shifts.filter(
-      (s) => new Date(s.shift_date) >= sevenDaysAgo
-    ).sort((a, b) => new Date(a.shift_date).getTime() - new Date(b.shift_date).getTime());
+      (s) => new Date(s.start_time) >= sevenDaysAgo
+    ).sort((a, b) => new Date(a.start_time).getTime() - new Date(b.start_time).getTime());
 
     let consecutiveWorkDays = 0;
     let daysSinceLastBreak = 0;
 
     if (recentShifts.length > 0) {
       consecutiveWorkDays = 1;
-      let lastShiftDate = new Date(recentShifts[recentShifts.length - 1].shift_date);
+      let lastShiftDate = new Date(recentShifts[recentShifts.length - 1].start_time);
       
       for (let i = recentShifts.length - 2; i >= 0; i--) {
-        const currentShiftDate = new Date(recentShifts[i].shift_date);
+        const currentShiftDate = new Date(recentShifts[i].start_time);
         const daysDiff = Math.floor(
           (lastShiftDate.getTime() - currentShiftDate.getTime()) / (1000 * 60 * 60 * 24)
         );
@@ -126,7 +126,7 @@ export async function analyzeUserPatterns(userId: string): Promise<UserPattern |
     }
 
     // Weekly hours
-    const weeklyShifts = shifts.filter((s) => new Date(s.shift_date) >= sevenDaysAgo);
+    const weeklyShifts = shifts.filter((s) => new Date(s.start_time) >= sevenDaysAgo);
     const totalWeeklyHours = weeklyShifts.reduce((sum, shift) => {
       const start = new Date(shift.start_time);
       const end = new Date(shift.end_time);
@@ -161,8 +161,8 @@ export async function analyzeUserPatterns(userId: string): Promise<UserPattern |
       nightShiftCount: nightShifts.length,
       recentMoodTrend,
     };
-  } catch (error) {
-    console.error('Error analyzing user patterns:', error);
+  } catch (error: any) {
+    console.error('Error analyzing user patterns:', error?.message || String(error));
     return null;
   }
 }
@@ -276,6 +276,31 @@ export async function generateRecommendations(userId: string): Promise<Recommend
     });
   }
 
+  // Always add at least one general wellness tip if no specific recommendations
+  if (recommendations.length === 0) {
+    recommendations.push({
+      user_id: userId,
+      type: 'mindfulness',
+      title: '🌟 Start Your Wellness Journey',
+      description: 'Log your mood daily to get personalized recommendations. Track your sleep, work shifts, and energy levels.',
+      reason: 'Building your wellness profile',
+      priority: 'medium',
+      action_url: '/wellness',
+      expires_at: expiresIn24h,
+    });
+    
+    recommendations.push({
+      user_id: userId,
+      type: 'task',
+      title: '📅 Schedule Your Week',
+      description: 'Add your upcoming shifts and personal tasks to help us identify patterns and optimize your schedule.',
+      reason: 'Initial setup',
+      priority: 'medium',
+      action_url: '/scheduler',
+      expires_at: expiresIn24h,
+    });
+  }
+
   return recommendations;
 }
 
@@ -291,13 +316,15 @@ export async function saveRecommendations(recommendations: Recommendation[]): Pr
       .insert(recommendations);
 
     if (error) {
-      console.error('Error saving recommendations:', error);
+      console.error('Error saving recommendations:', 
+        `Message: ${error.message || 'N/A'}, Code: ${error.code || 'N/A'}, Details: ${error.details || 'N/A'}, Hint: ${error.hint || 'N/A'}`
+      );
       return false;
     }
 
     return true;
-  } catch (error) {
-    console.error('Unexpected error saving recommendations:', error);
+  } catch (error: any) {
+    console.error('Unexpected error saving recommendations:', error?.message || String(error));
     return false;
   }
 }
@@ -318,13 +345,15 @@ export async function getActiveRecommendations(userId: string): Promise<Recommen
       .order('created_at', { ascending: false });
 
     if (error) {
-      console.error('Error fetching recommendations:', error);
+      console.error('Error fetching recommendations:', 
+        `Message: ${error.message || 'N/A'}, Code: ${error.code || 'N/A'}, Details: ${error.details || 'N/A'}, Hint: ${error.hint || 'N/A'}`
+      );
       return [];
     }
 
     return data || [];
-  } catch (error) {
-    console.error('Unexpected error fetching recommendations:', error);
+  } catch (error: any) {
+    console.error('Unexpected error fetching recommendations:', error?.message || String(error));
     return [];
   }
 }

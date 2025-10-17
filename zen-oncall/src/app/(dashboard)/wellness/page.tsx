@@ -102,85 +102,131 @@ export default function WellnessPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-3xl font-bold">Mood & Energy Tracker</h1>
-      <p className="text-gray-600">Check in daily to track your well-being and identify trends.</p>
+    <div className="space-y-8 animate-in fade-in duration-700">
+      {/* Animated Header */}
+      <div className="text-center space-y-2 animate-in slide-in-from-top duration-500">
+        <h1 className="text-4xl font-bold bg-gradient-to-r from-violet-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+          Mood & Energy Tracker ✨
+        </h1>
+        <p className="text-lg text-slate-600">Check in daily to track your well-being and identify trends.</p>
+      </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Today&apos;s Check-in</CardTitle>
-            <CardDescription>{format(new Date(), 'PPP')}</CardDescription>
+        <Card className="border-t-4 border-t-violet-500 shadow-lg hover:shadow-2xl transition-all duration-300 animate-in slide-in-from-left duration-700">
+          <CardHeader className="bg-gradient-to-br from-violet-50 to-purple-50">
+            <CardTitle className="text-2xl text-violet-700">Today&apos;s Check-in 📝</CardTitle>
+            <CardDescription className="text-violet-600 font-medium">{format(new Date(), 'PPP')}</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="pt-6">
             {hasLoggedToday ? (
-              <div className="text-center py-12">
-                <p className="text-lg font-semibold text-green-600">Thanks for checking in today!</p>
-                <p className="text-muted-foreground">Come back tomorrow to log again.</p>
+              <div className="text-center py-12 space-y-4 animate-in zoom-in duration-500">
+                <div className="text-6xl animate-bounce">🎉</div>
+                <p className="text-xl font-bold bg-gradient-to-r from-emerald-600 to-green-600 bg-clip-text text-transparent">
+                  Thanks for checking in today!
+                </p>
+                <p className="text-slate-600">Come back tomorrow to log again.</p>
               </div>
             ) : (
               <div className="space-y-6">
-                <div>
-                  <label className="font-semibold">How are you feeling?</label>
-                  <div className="flex justify-around pt-2">
+                <div className="space-y-3">
+                  <label className="text-lg font-semibold text-slate-700">How are you feeling? 💭</label>
+                  <div className="flex justify-around pt-2 gap-2">
                     {moodOptions.map(({ score, icon: Icon, label, color }) => (
-                      <button key={score} onClick={() => setSelectedMood(score)} className={`text-center p-2 rounded-lg ${selectedMood === score ? 'bg-muted ring-2 ring-primary' : ''}`}>
-                        <Icon className={`h-8 w-8 mx-auto ${color}`} />
-                        <span className="text-xs">{label}</span>
+                      <button 
+                        key={score} 
+                        onClick={() => setSelectedMood(score)} 
+                        className={`text-center p-3 rounded-xl transition-all duration-300 transform hover:scale-110 hover:shadow-lg ${
+                          selectedMood === score 
+                            ? 'bg-gradient-to-br from-violet-100 to-purple-100 ring-4 ring-violet-400 scale-110' 
+                            : 'bg-slate-50 hover:bg-slate-100'
+                        }`}
+                      >
+                        <Icon className={`h-10 w-10 mx-auto ${color} ${selectedMood === score ? 'animate-bounce' : ''}`} />
+                        <span className="text-xs font-medium mt-1 block">{label}</span>
                       </button>
                     ))}
                   </div>
                 </div>
 
-                <div>
-                  <label className="font-semibold">What&apos;s your energy level?</label>
+                <div className="space-y-3">
+                  <label className="text-lg font-semibold text-slate-700">What&apos;s your energy level? ⚡</label>
                   <div className="flex items-center justify-between pt-2 space-x-2">
-                    <span className="text-xs text-muted-foreground">Low</span>
+                    <span className="text-xs text-slate-500 font-medium">Low</span>
                     {[1, 2, 3, 4, 5].map(level => (
-                      <button key={level} onClick={() => setSelectedEnergy(level)} className={`w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm ${selectedEnergy === level ? 'bg-primary text-primary-foreground' : 'bg-muted'}`}>
+                      <button 
+                        key={level} 
+                        onClick={() => setSelectedEnergy(level)} 
+                        className={`w-12 h-12 rounded-full flex items-center justify-center font-bold text-lg transition-all duration-300 transform hover:scale-110 ${
+                          selectedEnergy === level 
+                            ? 'bg-gradient-to-br from-amber-400 to-orange-500 text-white shadow-lg scale-110 animate-pulse' 
+                            : 'bg-slate-100 hover:bg-slate-200 text-slate-600'
+                        }`}
+                      >
                         {level}
                       </button>
                     ))}
-                    <span className="text-xs text-muted-foreground">High</span>
+                    <span className="text-xs text-slate-500 font-medium">High</span>
                   </div>
                 </div>
                 
-                <div>
-                  <label htmlFor="journal" className="font-semibold">Journal (Optional)</label>
-                  <Textarea id="journal" placeholder="How was your shift? Any thoughts?" value={journalEntry} onChange={(e) => setJournalEntry(e.target.value)} />
+                <div className="space-y-2">
+                  <label htmlFor="journal" className="text-lg font-semibold text-slate-700">Journal (Optional) 📖</label>
+                  <Textarea 
+                    id="journal" 
+                    placeholder="How was your shift? Any thoughts or reflections..." 
+                    value={journalEntry} 
+                    onChange={(e) => setJournalEntry(e.target.value)}
+                    className="min-h-[120px] border-slate-200 focus:border-violet-400 focus:ring-violet-400"
+                  />
                 </div>
                 
-                {error && <p className="text-red-500 text-sm text-center">{error}</p>}
-                {successMessage && <p className="text-green-500 text-sm text-center">{successMessage}</p>}
+                {error && (
+                  <div className="p-3 rounded-lg bg-red-50 border border-red-200 animate-in slide-in-from-top duration-300">
+                    <p className="text-red-600 text-sm font-medium text-center">❌ {error}</p>
+                  </div>
+                )}
+                {successMessage && (
+                  <div className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 animate-in slide-in-from-top duration-300">
+                    <p className="text-emerald-600 text-sm font-medium text-center">✅ {successMessage}</p>
+                  </div>
+                )}
                 
-                <Button onClick={handleSubmitLog} disabled={loading || !selectedMood || !selectedEnergy} className="w-full">
-                  {loading ? 'Saving...' : 'Save Today\'s Log'}
+                <Button 
+                  onClick={handleSubmitLog} 
+                  disabled={loading || !selectedMood || !selectedEnergy} 
+                  className="w-full h-12 text-lg bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {loading ? '💾 Saving...' : '💾 Save Today\'s Log'}
                 </Button>
               </div>
             )}
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Recent Logs</CardTitle>
-            <CardDescription>Your check-ins from the last 7 days.</CardDescription>
+        <Card className="border-t-4 border-t-cyan-500 shadow-lg hover:shadow-2xl transition-all duration-300 animate-in slide-in-from-right duration-700">
+          <CardHeader className="bg-gradient-to-br from-cyan-50 to-blue-50">
+            <CardTitle className="text-2xl text-cyan-700">Recent Logs 📊</CardTitle>
+            <CardDescription className="text-cyan-600 font-medium">Your check-ins from the last 7 days.</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="pt-6">
             {recentLogs.length > 0 ? (
-              <ul className="space-y-4">
-                {recentLogs.map(log => {
+              <ul className="space-y-3">
+                {recentLogs.map((log, index) => {
                   const mood = moodOptions.find(m => m.score === log.mood_score);
                   return (
-                    <li key={log.id} className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
-                      <p className="font-semibold">{format(parseISO(log.log_date), 'MMM dd, yyyy')}</p>
+                    <li 
+                      key={log.id} 
+                      className="flex items-center justify-between p-4 rounded-xl bg-gradient-to-br from-slate-50 to-slate-100 border border-slate-200 hover:shadow-md hover:scale-[1.02] transition-all duration-300 animate-in slide-in-from-bottom"
+                      style={{ animationDelay: `${index * 100}ms` }}
+                    >
+                      <p className="font-bold text-slate-700">{format(parseISO(log.log_date), 'MMM dd, yyyy')}</p>
                       <div className="flex items-center gap-4">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-white shadow-sm">
                           {mood && <mood.icon className={`h-5 w-5 ${mood.color}`} />}
-                          <span className="text-sm">{mood?.label}</span>
+                          <span className="text-sm font-medium">{mood?.label}</span>
                         </div>
-                        <div className="text-sm">
-                          <span className="text-muted-foreground">Energy:</span> {log.energy_level}/5
+                        <div className="text-sm px-3 py-1 rounded-full bg-amber-100 text-amber-700 font-medium">
+                          ⚡ {log.energy_level}/5
                         </div>
                       </div>
                     </li>
@@ -188,7 +234,10 @@ export default function WellnessPage() {
                 })}
               </ul>
             ) : (
-              <p className="text-muted-foreground text-center py-10">No recent logs found. Start by checking in today!</p>
+              <div className="text-center py-12 space-y-4">
+                <div className="text-6xl opacity-50">📊</div>
+                <p className="text-slate-500">No recent logs found. Start by checking in today!</p>
+              </div>
             )}
           </CardContent>
         </Card>

@@ -59,19 +59,28 @@ export default function RecommendationsPage() {
   }, []);
 
   const loadData = async () => {
-    setLoading(true);
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    try {
+      setLoading(true);
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setLoading(false);
+        return;
+      }
 
-    // Load patterns and recommendations in parallel
-    const [patternsData, recsData] = await Promise.all([
-      analyzeUserPatterns(user.id),
-      getActiveRecommendations(user.id),
-    ]);
+      // Load patterns and recommendations in parallel
+      const [patternsData, recsData] = await Promise.all([
+        analyzeUserPatterns(user.id),
+        getActiveRecommendations(user.id),
+      ]);
 
-    setPatterns(patternsData);
-    setRecommendations(recsData);
-    setLoading(false);
+      setPatterns(patternsData);
+      setRecommendations(recsData);
+    } catch (error: any) {
+      console.error('Error loading data:', error?.message || String(error));
+      toast.error('Failed to load recommendations data');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleGenerateRecommendations = async () => {
@@ -96,8 +105,8 @@ export default function RecommendationsPage() {
       } else {
         toast.error('Failed to save recommendations');
       }
-    } catch (error) {
-      console.error('Error generating recommendations:', error);
+    } catch (error: any) {
+      console.error('Error generating recommendations:', error?.message || String(error));
       toast.error('Failed to generate recommendations');
     }
     setGenerating(false);

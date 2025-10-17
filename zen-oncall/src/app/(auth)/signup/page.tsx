@@ -40,46 +40,45 @@ export default function SignUpPage() {
 
   if (success) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            <div className="mx-auto w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mb-4">
-              <svg
-                className="w-10 h-10 text-blue-600"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-                />
-              </svg>
+      <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-emerald-50 via-teal-50 to-cyan-50 p-4">
+        {/* Animated Background */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          <div className="absolute top-20 left-10 w-72 h-72 bg-emerald-300/20 rounded-full blur-3xl animate-float"></div>
+          <div className="absolute bottom-20 right-10 w-96 h-96 bg-cyan-300/20 rounded-full blur-3xl animate-float" style={{ animationDelay: '1s' }}></div>
+        </div>
+
+        <Card className="relative z-10 w-full max-w-md shadow-2xl border-t-4 border-t-emerald-500 animate-in fade-in zoom-in duration-700">
+          <CardHeader className="text-center space-y-4 bg-gradient-to-br from-emerald-50 to-teal-50 pb-8">
+            <div className="mx-auto w-20 h-20 bg-gradient-to-br from-emerald-500 to-teal-600 rounded-full flex items-center justify-center shadow-lg animate-bounce">
+              <span className="text-5xl">📧</span>
             </div>
-            <CardTitle>Check Your Email! 📧</CardTitle>
-            <CardDescription>
-              We&apos;ve sent a confirmation link to <strong>{email}</strong>
+            <CardTitle className="text-3xl font-bold bg-gradient-to-r from-emerald-600 to-teal-600 bg-clip-text text-transparent">
+              Check Your Email! ✨
+            </CardTitle>
+            <CardDescription className="text-base text-slate-600">
+              We&apos;ve sent a confirmation link to <strong className="text-emerald-600">{email}</strong>
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 text-sm text-blue-800">
-              <p className="font-semibold mb-2">Next Steps:</p>
-              <ol className="list-decimal list-inside space-y-1">
-                <li>Check your email inbox</li>
-                <li>Click the confirmation link</li>
-                <li>You&apos;ll be redirected back here</li>
-                <li>Start using Zen_OnCall!</li>
+          <CardContent className="space-y-6 pt-8">
+            <div className="bg-gradient-to-br from-emerald-50 to-teal-50 border-2 border-emerald-200 rounded-xl p-5 text-sm text-emerald-800 shadow-sm">
+              <p className="font-bold text-base mb-3 flex items-center gap-2">
+                <span className="text-2xl">📋</span>
+                Next Steps:
+              </p>
+              <ol className="list-decimal list-inside space-y-2 ml-2">
+                <li className="font-medium">Check your email inbox</li>
+                <li className="font-medium">Click the confirmation link</li>
+                <li className="font-medium">You&apos;ll be redirected back here</li>
+                <li className="font-medium">Start using Zen OnCall! 🎉</li>
               </ol>
             </div>
-            <p className="text-xs text-center text-gray-500">
+            <p className="text-sm text-center text-slate-600 bg-slate-50 rounded-lg p-3">
               Didn&apos;t receive the email? Check your spam folder or{' '}
               <button 
                 onClick={() => setSuccess(false)}
-                className="text-blue-600 hover:underline font-medium"
+                className="text-emerald-600 hover:text-emerald-700 hover:underline font-bold"
               >
-                try again
+                try again →
               </button>
             </p>
           </CardContent>
@@ -89,30 +88,82 @@ export default function SignUpPage() {
   }
 
   return (
-    <div className="flex items-center justify-center min-h-screen">
-      <Card className="w-full max-w-sm">
-        <CardHeader>
-          <CardTitle>Create Account</CardTitle>
-          <CardDescription>Enter your details to get started with Zen_OnCall.</CardDescription>
+    <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-violet-50 via-purple-50 to-pink-50 p-4">
+      {/* Animated Background */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-20 left-10 w-72 h-72 bg-violet-300/20 rounded-full blur-3xl animate-float"></div>
+        <div className="absolute bottom-20 right-10 w-96 h-96 bg-pink-300/20 rounded-full blur-3xl animate-float" style={{ animationDelay: '1s' }}></div>
+      </div>
+
+      {/* Signup Card */}
+      <Card className="relative z-10 w-full max-w-md shadow-2xl border-t-4 border-t-violet-500 animate-in fade-in slide-in-from-bottom duration-700">
+        <CardHeader className="text-center space-y-4 bg-gradient-to-br from-violet-50 to-purple-50 pb-8">
+          {/* Logo */}
+          <div className="flex justify-center">
+            <div className="p-4 rounded-2xl bg-gradient-to-br from-violet-500 to-purple-600 shadow-lg">
+              <span className="text-5xl">✨</span>
+            </div>
+          </div>
+          <CardTitle className="text-3xl font-bold bg-gradient-to-r from-violet-600 to-purple-600 bg-clip-text text-transparent">
+            Create Account 🚀
+          </CardTitle>
+          <CardDescription className="text-base text-slate-600">
+            Join the Zen OnCall community and start your wellness journey
+          </CardDescription>
         </CardHeader>
-        <CardContent>
-          <form onSubmit={handleSignUp} className="space-y-4">
-            <div>
-              <Label htmlFor="email">Email</Label>
-              <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} required />
+        <CardContent className="pt-8">
+          <form onSubmit={handleSignUp} className="space-y-5">
+            <div className="space-y-2">
+              <Label htmlFor="email" className="text-base font-semibold text-slate-700">Email Address</Label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xl">📧</span>
+                <Input 
+                  id="email" 
+                  type="email" 
+                  value={email} 
+                  onChange={(e) => setEmail(e.target.value)} 
+                  required 
+                  placeholder="your.email@hospital.com"
+                  className="pl-11 h-12 border-2 border-slate-200 focus:border-violet-400 focus:ring-violet-300"
+                />
+              </div>
             </div>
-            <div>
-              <Label htmlFor="password">Password</Label>
-              <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} minLength={6} required />
+            <div className="space-y-2">
+              <Label htmlFor="password" className="text-base font-semibold text-slate-700">Password</Label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-xl">🔒</span>
+                <Input 
+                  id="password" 
+                  type="password" 
+                  value={password} 
+                  onChange={(e) => setPassword(e.target.value)} 
+                  minLength={6} 
+                  required 
+                  placeholder="At least 6 characters"
+                  className="pl-11 h-12 border-2 border-slate-200 focus:border-violet-400 focus:ring-violet-300"
+                />
+              </div>
+              <p className="text-xs text-slate-500">Minimum 6 characters required</p>
             </div>
-            {error && <p className="text-red-500 text-sm text-center">{error}</p>}
-            <Button type="submit" className="w-full">Sign Up</Button>
-            <p className="text-center text-sm text-gray-600">
-              Already have an account?{' '}
-              <Link href="/login" className="font-semibold text-blue-600 hover:underline">
-                Sign In
-              </Link>
-            </p>
+            {error && (
+              <div className="p-3 rounded-lg bg-red-50 border border-red-200 animate-in slide-in-from-top duration-300">
+                <p className="text-red-600 text-sm font-medium text-center">❌ {error}</p>
+              </div>
+            )}
+            <Button 
+              type="submit" 
+              className="w-full h-12 text-lg bg-gradient-to-r from-violet-500 to-purple-600 hover:from-violet-600 hover:to-purple-700 shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+            >
+              ✨ Create Account
+            </Button>
+            <div className="text-center pt-2">
+              <p className="text-sm text-slate-600">
+                Already have an account?{' '}
+                <Link href="/login" className="font-bold text-violet-600 hover:text-violet-700 hover:underline">
+                  Sign In →
+                </Link>
+              </p>
+            </div>
           </form>
         </CardContent>
       </Card>

@@ -70,63 +70,93 @@ export default async function DashboardPage() {
   });
 
   return (
-    <div className="space-y-6">
-      <h1 className="text-3xl font-bold">Welcome, {session.user.email?.split('@')[0]}!</h1>
-      <p className="text-gray-600">Your central hub for Zen_OnCall. Quick insights and actions.</p>
+    <div className="space-y-8 animate-in fade-in duration-700">
+      {/* Hero Header with Gradient */}
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-cyan-500 via-blue-500 to-violet-600 p-8 shadow-xl">
+        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAiIGhlaWdodD0iNjAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImdyaWQiIHdpZHRoPSI2MCIgaGVpZ2h0PSI2MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTSAxMCAwIEwgMCAwIDAgMTAiIGZpbGw9Im5vbmUiIHN0cm9rZT0id2hpdGUiIHN0cm9rZS1vcGFjaXR5PSIwLjEiIHN0cm9rZS13aWR0aD0iMSIvPjwvcGF0dGVybj48L2RlZnM+PHJlY3Qgd2lkdGg9IjEwMCUiIGhlaWdodD0iMTAwJSIgZmlsbD0idXJsKCNncmlkKSIvPjwvc3ZnPg==')] opacity-20"></div>
+        <div className="relative z-10">
+          <h1 className="text-4xl font-bold text-white drop-shadow-lg animate-in slide-in-from-left duration-500">
+            Welcome back, {session.user.email?.split('@')[0]}! 👋
+          </h1>
+          <p className="mt-2 text-lg text-cyan-50 animate-in slide-in-from-left duration-700 delay-100">
+            Your personalized wellness command center. Let&apos;s make today great!
+          </p>
+        </div>
+      </div>
 
-      {/* --- Top Row Summary Cards (Your existing layout) --- */}
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        <Card>
+      {/* Top Row Summary Cards with Hover Animations */}
+      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <Card className="group hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 border-l-4 border-l-cyan-500 animate-in fade-in-50 slide-in-from-bottom-4 duration-500">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">My Schedule</CardTitle>
-            <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-slate-600">My Schedule</CardTitle>
+            <div className="rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 p-2 group-hover:scale-110 transition-transform duration-300">
+              <CalendarIcon className="h-5 w-5 text-white" />
+            </div>
           </CardHeader>
           <CardContent>
             {todaysShift ? (
               <>
-                <div className="text-2xl font-bold">Shift Today</div>
-                <p className="text-xs text-muted-foreground">{new Date(todaysShift.start_time).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} - {new Date(todaysShift.end_time).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</p>
+                <div className="text-3xl font-bold bg-gradient-to-r from-cyan-600 to-blue-600 bg-clip-text text-transparent">Shift Today</div>
+                <p className="mt-1 text-sm text-slate-500 font-medium">{new Date(todaysShift.start_time).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })} - {new Date(todaysShift.end_time).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}</p>
               </>
             ) : (
-              <div className="text-2xl font-bold">Day Off</div>
+              <div className="text-3xl font-bold text-emerald-600">Day Off 🌴</div>
             )}
-            <Button asChild className="mt-4 w-full"><Link href="/scheduler">View Full Schedule</Link></Button>
+            <Button asChild className="mt-4 w-full bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 shadow-md hover:shadow-lg transition-all duration-300">
+              <Link href="/scheduler">View Full Schedule</Link>
+            </Button>
           </CardContent>
         </Card>
-        <Card>
+        
+        <Card className="group hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 border-l-4 border-l-violet-500 animate-in fade-in-50 slide-in-from-bottom-4 duration-500 delay-150">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Mood Check-in</CardTitle>
-            <HeartPulseIcon className="h-4 w-4 text-muted-foreground" />
+            <CardTitle className="text-sm font-medium text-slate-600">Mood Check-in</CardTitle>
+            <div className="rounded-full bg-gradient-to-br from-violet-500 to-purple-600 p-2 group-hover:scale-110 transition-transform duration-300">
+              <HeartPulseIcon className="h-5 w-5 text-white" />
+            </div>
           </CardHeader>
           <CardContent>
             {latestMoodLog ? (
               <>
-                <div className="text-2xl font-bold">Last Logged: {latestMoodLog.mood_score}/5</div>
-                <p className="text-xs text-muted-foreground">Energy: {latestMoodLog.energy_level}/5</p>
+                <div className="text-3xl font-bold bg-gradient-to-r from-violet-600 to-purple-600 bg-clip-text text-transparent">
+                  {latestMoodLog.mood_score}/5 {['😢', '😕', '😐', '😊', '😄'][latestMoodLog.mood_score - 1]}
+                </div>
+                <p className="mt-1 text-sm text-slate-500 font-medium">Energy: {latestMoodLog.energy_level}/5 ⚡</p>
               </>
             ) : (
-              <div className="text-2xl font-bold">No logs yet</div>
+              <div className="text-3xl font-bold text-slate-400">No logs yet</div>
             )}
-            <Button asChild variant="outline" className="mt-4 w-full"><Link href="/wellness">Log Your Mood</Link></Button>
+            <Button asChild variant="outline" className="mt-4 w-full border-violet-300 text-violet-600 hover:bg-violet-50 hover:border-violet-400 transition-all duration-300">
+              <Link href="/wellness">Log Your Mood</Link>
+            </Button>
           </CardContent>
         </Card>
-        <Card>
+        
+        <Card className="group hover:shadow-2xl hover:-translate-y-1 transition-all duration-300 border-l-4 border-l-amber-500 animate-in fade-in-50 slide-in-from-bottom-4 duration-500 delay-300">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Burnout Risk</CardTitle>
-            <BurnoutIcon className={`h-4 w-4 text-muted-foreground ${burnoutRisk.color}`} />
+            <CardTitle className="text-sm font-medium text-slate-600">Burnout Risk</CardTitle>
+            <div className={`rounded-full bg-gradient-to-br from-amber-500 to-orange-600 p-2 group-hover:scale-110 transition-transform duration-300`}>
+              <BurnoutIcon className={`h-5 w-5 text-white`} />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className={`text-2xl font-bold ${burnoutRisk.color}`}>{burnoutRisk.level}</div>
-            <p className="text-xs text-muted-foreground">{burnoutRisk.message}</p>
-            <Button asChild variant="outline" className="mt-4 w-full"><Link href="/burnout">View Full Analysis</Link></Button>
+            <div className={`text-3xl font-bold ${burnoutRisk.color}`}>{burnoutRisk.level}</div>
+            <p className="mt-1 text-sm text-slate-500 font-medium">{burnoutRisk.message}</p>
+            <Button asChild variant="outline" className="mt-4 w-full border-amber-300 text-amber-600 hover:bg-amber-50 hover:border-amber-400 transition-all duration-300">
+              <Link href="/burnout">View Full Analysis</Link>
+            </Button>
           </CardContent>
         </Card>
       </div>
 
-      {/* --- NEW: Analytics Charts Section --- */}
+      {/* Analytics Charts Section with Animations */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <MoodChart data={moodChartData} />
-        <WorkLifeChart data={workLifeChartData} />
+        <div className="animate-in fade-in-50 slide-in-from-left duration-700 delay-200">
+          <MoodChart data={moodChartData} />
+        </div>
+        <div className="animate-in fade-in-50 slide-in-from-right duration-700 delay-200">
+          <WorkLifeChart data={workLifeChartData} />
+        </div>
       </div>
     </div>
   );

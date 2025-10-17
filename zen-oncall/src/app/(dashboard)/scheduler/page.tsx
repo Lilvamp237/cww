@@ -453,29 +453,50 @@ export default function SchedulerPage() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Smart Scheduler</h1>
-          <p className="text-gray-600">Manage your work shifts, personal tasks, and habits</p>
+    <div className="space-y-8 animate-in fade-in duration-700">
+      {/* Enhanced Header with Gradient */}
+      <div className="flex items-center justify-between animate-in slide-in-from-top duration-500">
+        <div className="space-y-2">
+          <div className="flex items-center gap-3">
+            <div className="p-3 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-600 shadow-lg">
+              <span className="text-3xl">📅</span>
+            </div>
+            <div>
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 via-cyan-600 to-teal-600 bg-clip-text text-transparent">
+                Smart Scheduler
+              </h1>
+              <p className="text-lg text-slate-600">Manage your work shifts, personal tasks, and habits</p>
+            </div>
+          </div>
         </div>
-        <Button onClick={handleAddHabit} variant="outline">
-          <PlusCircleIcon className="mr-2 h-4 w-4" /> Add Habit
+        <Button 
+          onClick={handleAddHabit} 
+          className="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105"
+        >
+          <PlusCircleIcon className="mr-2 h-5 w-5" /> Add Habit
         </Button>
       </div>
 
-      {/* Quick Add */}
-      <Card>
+      {/* Enhanced Quick Add with Gradient Border */}
+      <Card className="border-t-4 border-t-cyan-500 shadow-lg hover:shadow-xl transition-all duration-300 animate-in slide-in-from-bottom duration-500">
         <CardContent className="pt-6">
-          <div className="flex gap-2">
-            <Input
-              placeholder="Quick add: 'Shift 09:00 17:00' or 'Buy groceries'"
-              value={quickAddText}
-              onChange={(e) => setQuickAddText(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleQuickAdd()}
-            />
-            <Button onClick={handleQuickAdd} disabled={loading || !quickAddText.trim()}>
-              Add
+          <div className="flex gap-3">
+            <div className="relative flex-1">
+              <div className="absolute left-3 top-1/2 -translate-y-1/2 text-2xl">✨</div>
+              <Input
+                placeholder="Quick add: 'Shift 09:00 17:00' or 'Buy groceries' or 'Call doctor tomorrow 2pm'"
+                value={quickAddText}
+                onChange={(e) => setQuickAddText(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleQuickAdd()}
+                className="pl-12 h-12 text-base border-2 border-slate-200 focus:border-cyan-400 focus:ring-cyan-300"
+              />
+            </div>
+            <Button 
+              onClick={handleQuickAdd} 
+              disabled={loading || !quickAddText.trim()}
+              className="h-12 px-6 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700 shadow-md hover:shadow-lg transition-all duration-300 disabled:opacity-50"
+            >
+              {loading ? '⏳ Adding...' : '➕ Add'}
             </Button>
           </div>
         </CardContent>
