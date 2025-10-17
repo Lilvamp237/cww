@@ -4,596 +4,520 @@
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClientComponentClient } from '@/lib/supabase/client';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Send, Mic, Square, Sparkles, Calendar, Moon, Heart, CheckCircle } from 'lucide-react';
-import { format, addDays } from 'date-fns';
-import { Badge } from '@/components/ui/badge';
+import { Send, Mic, Bot, User, Sparkles, Loader2 } from 'lucide-react';
+import { format } from 'date-fns';
 
-type ConversationItem = {
+type Message = {
   role: 'user' | 'assistant';
   content: string;
-  timestamp: string;
-  action?: {
-    type: string;
-    label: string;
-    data?: any;
-  };
+  timestamp: Date;
+  suggestions?: string[];
+};
+
+type UserContext = {
+  name: string;
+  todayMoodLogged: boolean;
+  todaySleepLogged: boolean;
+  currentStreak: number;
+  recentMood?: number;
+  recentEnergy?: number;
+  recentSleep?: number;
+  upcomingShifts: number;
 };
 
 export default function AssistantPage() {
   const supabase = createClientComponentClient();
   const router = useRouter();
+  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
-  const [conversation, setConversation] = useState<ConversationItem[]>([]);
   const [loading, setLoading] = useState(false);
-  const [listening, setListening] = useState(false);
-  const [userName, setUserName] = useState('');
+  const [userContext, setUserContext] = useState<UserContext>({
+    name: '',
+    todayMoodLogged: false,
+    todaySleepLogged: false,
+    currentStreak: 0,
+    upcomingShifts: 0,
+  });
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const [recognition, setRecognition] = useState<any>(null);
+  const [isTyping, setIsTyping] = useState(false);
 
   useEffect(() => {
-    if (typeof window !== 'undefined' && 'webkitSpeechRecognition' in window) {
-      const SpeechRecognition = (window as any).webkitSpeechRecognition;
-      const recognitionInstance = new SpeechRecognition();
-      recognitionInstance.continuous = false;
-      recognitionInstance.interimResults = false;
-      recognitionInstance.lang = 'en-US';
-
-      recognitionInstance.onresult = (event: any) => {
-        const transcript = event.results[0][0].transcript;
-        setInput(transcript);
-        setListening(false);
-        // Auto-submit after voice input
-        setTimeout(() => handleSendMessage(transcript), 100);
-      };
-
-      recognitionInstance.onerror = () => setListening(false);
-      recognitionInstance.onend = () => setListening(false);
-
-      setRecognition(recognitionInstance);
-    }
-
-    loadUserData();
-    loadConversationHistory();
+    loadUserContext();
+    sendWelcomeMessage();
   }, []);
 
   useEffect(() => {
-    scrollToBottom();
-  }, [conversation]);
-
-  const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
+  }, [messages]);
 
-  const loadUserData = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('full_name')
-        .eq('id', user.id)
-        .single();
-      
-      if (profile?.full_name) {
-        setUserName(profile.full_name.split(' ')[0]);
-      } else {
-        setUserName(user.email?.split('@')[0] || 'there');
-      }
-    }
-  };
-
-  const loadConversationHistory = async () => {
-    const { data, error } = await supabase
-      .from('ai_conversations')
-      .select('*')
-      .order('created_at', { ascending: true })
-      .limit(20);
-
-    if (data && !error) {
-      const formatted: ConversationItem[] = [];
-      data.forEach((msg: any) => {
-        formatted.push({
-          role: 'user',
-          content: msg.message,
-          timestamp: msg.created_at,
-        });
-        formatted.push({
-          role: 'assistant',
-          content: msg.response,
-          timestamp: msg.created_at,
-        });
-      });
-      setConversation(formatted);
-    }
-  };
-
-  const startListening = () => {
-    if (recognition) {
-      setListening(true);
-      recognition.start();
-    }
-  };
-
-  const stopListening = () => {
-    if (recognition) {
-      recognition.stop();
-      setListening(false);
-    }
-  };
-
-  const executeAction = async (action: string, data?: any) => {
+  const loadUserContext = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
 
-    switch (action) {
-      case 'log_mood':
-        router.push('/wellness-enhanced');
-        break;
-      
-      case 'add_shift':
-        router.push('/scheduler?tab=work');
-        break;
-      
-      case 'log_sleep':
-        router.push('/wellness-enhanced?tab=sleep');
-        break;
-      
-      case 'view_achievements':
-        router.push('/achievements');
-        break;
-      
-      case 'check_circles':
-        router.push('/circles');
-        break;
+    const today = format(new Date(), 'yyyy-MM-dd');
 
-      case 'quick_mood_log':
-        if (data?.mood && data?.energy) {
-          const today = new Date().toISOString().split('T')[0];
-          await supabase.from('mood_logs').insert({
-            user_id: user.id,
-            mood_score: data.mood,
-            energy_level: data.energy,
-            log_date: today,
-          });
-        }
-        break;
+    // Get user profile
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('full_name')
+      .eq('id', user.id)
+      .single();
 
-      case 'quick_task':
-        if (data?.task) {
-          await supabase.from('personal_tasks').insert({
-            user_id: user.id,
-            title: data.task,
-            priority: 'medium',
-            category: 'personal',
-          });
-        }
-        break;
-    }
-  };
-
-  const processMessage = async (userMessage: string): Promise<{ response: string; action?: any }> => {
-    const lowerMessage = userMessage.toLowerCase();
-    const { data: { user } } = await supabase.auth.getUser();
-    
-    // Get recent context
-    const today = new Date().toISOString().split('T')[0];
-    const { data: todayMood } = await supabase
+    // Check today's mood
+    const { data: moodLog } = await supabase
       .from('mood_logs')
-      .select('*')
-      .eq('user_id', user?.id)
+      .select('mood_score, energy_level')
+      .eq('user_id', user.id)
       .eq('log_date', today)
       .single();
 
-    const { data: recentSleep } = await supabase
+    // Check today's sleep
+    const { data: sleepLog } = await supabase
       .from('sleep_logs')
-      .select('*')
-      .eq('user_id', user?.id)
-      .order('log_date', { ascending: false })
-      .limit(1)
+      .select('sleep_hours')
+      .eq('user_id', user.id)
+      .eq('log_date', today)
       .single();
 
-    const { data: wellnessPoints } = await supabase
+    // Get wellness streak
+    const { data: wellness } = await supabase
       .from('wellness_points')
-      .select('*')
-      .eq('user_id', user?.id)
+      .select('daily_streak')
+      .eq('user_id', user.id)
       .single();
 
-    // Smart intent detection and responses
+    // Get upcoming shifts
+    const { data: shifts } = await supabase
+      .from('shifts')
+      .select('id', { count: 'exact' })
+      .eq('user_id', user.id)
+      .gte('start_time', new Date().toISOString())
+      .lte('start_time', new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString());
+
+    setUserContext({
+      name: profile?.full_name?.split(' ')[0] || 'there',
+      todayMoodLogged: !!moodLog,
+      todaySleepLogged: !!sleepLog,
+      currentStreak: wellness?.daily_streak || 0,
+      recentMood: moodLog?.mood_score,
+      recentEnergy: moodLog?.energy_level,
+      recentSleep: sleepLog?.sleep_hours,
+      upcomingShifts: shifts?.length || 0,
+    });
+  };
+
+  const sendWelcomeMessage = async () => {
+    await new Promise(resolve => setTimeout(resolve, 500));
     
-    // MOOD LOGGING
-    if (lowerMessage.match(/log.*mood|how.*feeling|feeling (good|bad|great|awful|okay)/i)) {
-      if (todayMood) {
-        return {
-          response: `You've already logged your mood today! You rated it ${todayMood.mood_score}/5 with energy level ${todayMood.energy_level}/5. Great job staying consistent! 🌟`,
-        };
-      }
-      
-      // Check for mood in message
-      const moodMatch = lowerMessage.match(/(awful|bad|okay|good|great)/i);
-      const energyMatch = lowerMessage.match(/energy.*?(\d)/i);
-      
-      if (moodMatch && energyMatch) {
-        const moodMap: any = { awful: 1, bad: 2, okay: 3, good: 4, great: 5 };
-        const mood = moodMap[moodMatch[1].toLowerCase()];
-        const energy = parseInt(energyMatch[1]);
-        
-        await executeAction('quick_mood_log', { mood, energy });
-        
-        return {
-          response: `✅ I've logged your mood as ${moodMatch[1]} (${mood}/5) with energy level ${energy}/5. Keep tracking daily to maintain your ${wellnessPoints?.daily_streak || 0}-day streak! 🔥`,
-          action: { type: 'logged', label: 'Mood logged successfully' },
-        };
-      }
-      
+    const welcomeMsg: Message = {
+      role: 'assistant',
+      content: `Hey! 👋 I'm your CareSync wellness assistant. I'm here to help you track your health, manage your schedule, and support your wellbeing. How are you feeling today?`,
+      timestamp: new Date(),
+      suggestions: [
+        "Log my mood",
+        "Track my sleep",
+        "How's my wellness streak?",
+        "What can you help with?"
+      ],
+    };
+    setMessages([welcomeMsg]);
+  };
+
+  const generateResponse = async (userMsg: string): Promise<Message> => {
+    const msg = userMsg.toLowerCase();
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    // Greeting responses
+    if (msg.match(/^(hi|hello|hey|good morning|good evening)/i)) {
+      const greetings = [
+        `Hey ${userContext.name}! 😊 Great to see you. How can I help you today?`,
+        `Hi ${userContext.name}! 🌟 What would you like to do?`,
+        `Hello! I'm here to support your wellness journey. What's on your mind?`,
+      ];
       return {
-        response: `Let's log your mood! I can guide you through it, or you can tell me directly. For example: "I'm feeling good with energy level 4" or click below to go to the wellness page.`,
-        action: { type: 'log_mood', label: 'Open Wellness Page' },
+        role: 'assistant',
+        content: greetings[Math.floor(Math.random() * greetings.length)],
+        timestamp: new Date(),
+        suggestions: ["Log my mood", "Check my schedule", "Track sleep", "View achievements"],
       };
     }
 
-    // SLEEP TRACKING
-    if (lowerMessage.match(/sleep|slept|tired|exhausted/i)) {
-      const hoursMatch = lowerMessage.match(/(\d+(?:\.\d+)?)\s*hours?/i);
+    // Mood logging
+    if (msg.match(/mood|feeling|emotion/i)) {
+      if (userContext.todayMoodLogged) {
+        return {
+          role: 'assistant',
+          content: `You already logged your mood today! You rated it ${userContext.recentMood}/5 with energy ${userContext.recentEnergy}/5. That's awesome consistency! 🌟 Keep your ${userContext.currentStreak}-day streak going!`,
+          timestamp: new Date(),
+          suggestions: ["Track my sleep", "View my progress", "How's my burnout risk?"],
+        };
+      }
+
+      // Extract mood from message
+      const moodKeywords: { [key: string]: number } = {
+        'awful': 1, 'terrible': 1, 'horrible': 1,
+        'bad': 2, 'down': 2, 'sad': 2, 'stressed': 2,
+        'okay': 3, 'fine': 3, 'alright': 3, 'meh': 3,
+        'good': 4, 'happy': 4, 'positive': 4,
+        'great': 5, 'amazing': 5, 'fantastic': 5, 'excellent': 5,
+      };
+
+      let detectedMood = 0;
+      for (const [keyword, score] of Object.entries(moodKeywords)) {
+        if (msg.includes(keyword)) {
+          detectedMood = score;
+          break;
+        }
+      }
+
+      if (detectedMood > 0) {
+        // Auto-log the mood
+        const today = format(new Date(), 'yyyy-MM-dd');
+        await supabase.from('mood_logs').insert({
+          user_id: user?.id,
+          mood_score: detectedMood,
+          energy_level: detectedMood, // Assume similar to mood
+          log_date: today,
+        });
+
+        const responses = {
+          1: "I'm sorry you're feeling rough. Remember, tough days happen to everyone. Have you tried taking a short walk or talking to someone? 💙",
+          2: "I hear you - not every day is easy. Want to try a quick breathing exercise or check out some wellness tips?",
+          3: "Sounds like you're holding steady! That's good. Anything I can help you with to make today better?",
+          4: "That's great! I'm glad you're feeling good. Keep that positive energy going! ✨",
+          5: "Wonderful! So happy you're feeling amazing! Let's keep this momentum going! 🎉",
+        };
+
+        await loadUserContext(); // Refresh context
+        
+        return {
+          role: 'assistant',
+          content: `✅ Mood logged as ${detectedMood}/5! ${responses[detectedMood as keyof typeof responses]}`,
+          timestamp: new Date(),
+          suggestions: ["Track my sleep", "View wellness tips", "Check achievements", "Log symptoms"],
+        };
+      }
+
+      return {
+        role: 'assistant',
+        content: `I'd love to help you log your mood! How are you feeling right now? You can say things like "I'm feeling great" or "Not having a good day" and I'll track it for you. 😊`,
+        timestamp: new Date(),
+        suggestions: ["I'm feeling great", "Not feeling good", "I'm okay", "Open mood tracker"],
+      };
+    }
+
+    // Sleep tracking
+    if (msg.match(/sleep|slept|tired|exhausted|rest/i)) {
+      const hoursMatch = msg.match(/(\d+\.?\d*)\s*hour/i);
       
       if (hoursMatch) {
         const hours = parseFloat(hoursMatch[1]);
-        const quality = hours >= 7 ? 4 : hours >= 6 ? 3 : 2;
+        const today = format(new Date(), 'yyyy-MM-dd');
+        const quality = hours >= 7 ? 4 : hours >= 6 ? 3 : hours >= 5 ? 2 : 1;
         
-        const { error } = await supabase.from('sleep_logs').insert({
+        await supabase.from('sleep_logs').insert({
           user_id: user?.id,
           sleep_hours: hours,
           sleep_quality: quality,
           log_date: today,
         });
 
-        if (!error) {
-          const tip = hours < 6 
-            ? '⚠️ That\'s below the recommended 7-9 hours. Try to prioritize rest tonight!'
-            : hours >= 8 
-            ? '🌟 Excellent! You\'re getting great rest.'
-            : '✅ Good sleep! Keep it up.';
-          
-          return {
-            response: `I've logged ${hours} hours of sleep for you. ${tip}`,
-            action: { type: 'logged', label: 'Sleep logged' },
-          };
-        }
-      }
+        const feedback = hours < 6 
+          ? `⚠️ That's below the recommended 7-9 hours for healthcare workers. Try to catch up on rest tonight!`
+          : hours >= 8 
+          ? `🌟 Excellent! You're giving your body the rest it needs.`
+          : `✅ Good sleep! Aim for 7-9 hours consistently for best results.`;
 
-      if (recentSleep) {
-        return {
-          response: `Your last sleep log was ${recentSleep.sleep_hours} hours with quality ${recentSleep.sleep_quality}/5. How did you sleep last night? You can say "I slept 7.5 hours" and I'll log it for you.`,
-        };
-      }
-
-      return {
-        response: `Sleep is crucial for wellness! Tell me how many hours you slept, like "I slept 7 hours" and I'll log it for you. Or click below to track it manually.`,
-        action: { type: 'log_sleep', label: 'Track Sleep' },
-      };
-    }
-
-    // TASK CREATION
-    if (lowerMessage.match(/add task|create task|remind me|need to/i)) {
-      const taskMatch = lowerMessage.match(/(?:add task|create task|remind me to|need to)\s+(.+)/i);
-      
-      if (taskMatch) {
-        const taskTitle = taskMatch[1].trim();
-        await executeAction('quick_task', { task: taskTitle });
+        await loadUserContext();
         
         return {
-          response: `✅ Task created: "${taskTitle}". I've added it to your personal task list with medium priority. You can view and edit it in the scheduler!`,
-          action: { type: 'logged', label: 'Task created' },
+          role: 'assistant',
+          content: `Sleep logged: ${hours} hours (quality ${quality}/5). ${feedback}`,
+          timestamp: new Date(),
+          suggestions: ["Log my mood", "View sleep patterns", "Get sleep tips", "Check energy"],
         };
       }
 
-      return {
-        response: `Sure! What task would you like to add? Just say "Add task [your task]" or "Remind me to [your task]".`,
-      };
-    }
-
-    // SHIFT MANAGEMENT
-    if (lowerMessage.match(/shift|schedule|work/i)) {
-      if (lowerMessage.match(/swap/i)) {
+      if (userContext.todaySleepLogged) {
         return {
-          response: `To swap shifts: Go to your Circle page → Shift Swaps tab → Request Swap. Select your shift and a teammate will be notified!`,
-          action: { type: 'check_circles', label: 'Go to Circles' },
+          role: 'assistant',
+          content: `You logged ${userContext.recentSleep} hours of sleep already. How was your sleep quality? Getting enough rest is crucial for avoiding burnout!`,
+          timestamp: new Date(),
+          suggestions: ["View sleep history", "Get sleep tips", "Log my mood", "How to sleep better"],
         };
       }
 
       return {
-        response: `I can help with shifts! Want to add a shift? Go to the Scheduler and click "Add Shift". You can set times, colors, and link it to a circle.`,
-        action: { type: 'add_shift', label: 'Add Shift' },
+        role: 'assistant',
+        content: `Sleep is super important! How many hours did you sleep last night? Just say something like "I slept 7 hours" and I'll track it. 😴`,
+        timestamp: new Date(),
+        suggestions: ["I slept 7 hours", "I slept 5 hours", "Didn't sleep well", "Open sleep tracker"],
       };
     }
 
-    // ACHIEVEMENTS & PROGRESS
-    if (lowerMessage.match(/achievement|badge|points|streak|level/i)) {
-      const level = wellnessPoints ? Math.floor(wellnessPoints.points / 100) + 1 : 1;
-      const streak = wellnessPoints?.daily_streak || 0;
-      const points = wellnessPoints?.points || 0;
+    // Wellness streak
+    if (msg.match(/streak|consistent|progress|doing/i)) {
+      const streakMsg = userContext.currentStreak > 0
+        ? `🔥 You're on a ${userContext.currentStreak}-day streak! That's amazing dedication to your wellness journey.`
+        : `You don't have an active streak yet, but you can start one today! Log your mood or sleep to begin.`;
+
+      const encouragement = userContext.currentStreak >= 7
+        ? " You're building incredible healthy habits! Keep it up!"
+        : userContext.currentStreak >= 3
+        ? " Keep going - you're doing great!"
+        : " Every day counts towards a healthier you!";
 
       return {
-        response: `🏆 You're Level ${level} with ${points} wellness points! You have a ${streak}-day streak going. ${streak >= 7 ? 'Amazing dedication! 🔥' : 'Keep logging daily to build your streak!'} Check your achievements page to see all your badges!`,
-        action: { type: 'view_achievements', label: 'View Achievements' },
+        role: 'assistant',
+        content: `${streakMsg}${encouragement}`,
+        timestamp: new Date(),
+        suggestions: ["Log my mood", "Track sleep", "View achievements", "Check my stats"],
       };
     }
 
-    // BURNOUT & STRESS
-    if (lowerMessage.match(/burnout|stressed|overwhelmed|exhausted|can't cope/i)) {
-      return {
-        response: `I'm sorry you're feeling this way. Here's what can help:\n\n🛌 **Immediate**: Take a 5-minute break, deep breaths\n💤 **Tonight**: Aim for 8+ hours sleep\n📝 **Track**: Log your mood daily to spot patterns\n🤝 **Connect**: Reach out to your circle for support\n🆘 **Emergency**: Use the SOS button on wellness page if you need immediate help\n\nYou're doing important work. Remember to care for yourself too. ❤️`,
-        action: { type: 'log_mood', label: 'Log How You Feel' },
-      };
-    }
-
-    // WELLNESS TIPS
-    if (lowerMessage.match(/tip|advice|help|suggest/i)) {
-      const tips = [
-        `💧 **Hydration Check**: Aim for 8 glasses of water during your shift. Your body needs it!`,
-        `🧘 **Micro-Break**: Take 2 minutes every hour to stretch or breathe deeply. Small breaks = big difference.`,
-        `📱 **Digital Detox**: Put your phone away 30 minutes before bed for better sleep quality.`,
-        `🥗 **Fuel Up**: Eat protein-rich snacks during shifts to maintain energy levels.`,
-        `👥 **Connect**: Chat with a colleague today. Social support reduces burnout by 50%!`,
-        `😴 **Sleep Hygiene**: Keep your bedroom cool (60-67°F) for optimal sleep.`,
-        `🎯 **One Thing**: Choose ONE self-care activity today. Small steps count!`,
-        `📊 **Track Progress**: Log your mood daily - awareness is the first step to improvement.`,
-      ];
+    // Schedule and shifts
+    if (msg.match(/shift|schedule|work|calendar/i)) {
+      const shiftsMsg = userContext.upcomingShifts > 0
+        ? `You have ${userContext.upcomingShifts} shifts coming up in the next 7 days.`
+        : `No shifts scheduled in the next week.`;
 
       return {
-        response: tips[Math.floor(Math.random() * tips.length)],
+        role: 'assistant',
+        content: `${shiftsMsg} Want to view your full schedule or add a new shift?`,
+        timestamp: new Date(),
+        suggestions: ["Open scheduler", "Add a shift", "View my shifts", "Request shift swap"],
       };
     }
 
-    // STATS & ANALYTICS
-    if (lowerMessage.match(/stats|how am i doing|progress|summary/i)) {
-      const moodCount = wellnessPoints?.total_moods_logged || 0;
-      const habitCount = wellnessPoints?.total_habits_completed || 0;
-      const sleepCount = wellnessPoints?.total_sleep_logged || 0;
-
+    // Burnout and stress
+    if (msg.match(/burnout|stress|overwhelm|anxious|anxiety/i)) {
       return {
-        response: `📊 **Your Wellness Stats**:\n\n✅ Mood logs: ${moodCount}\n💪 Habits completed: ${habitCount}\n😴 Sleep logs: ${sleepCount}\n🔥 Current streak: ${wellnessPoints?.daily_streak || 0} days\n⭐ Total points: ${wellnessPoints?.points || 0}\n\nYou're making great progress! Keep it up! 🌟`,
-        action: { type: 'view_achievements', label: 'See All Stats' },
+        role: 'assistant',
+        content: `I'm here to support you. ${userContext.name}, burnout is serious - especially in healthcare. Let me help you check your burnout risk score and get personalized recommendations. Would you like that?`,
+        timestamp: new Date(),
+        suggestions: ["Check burnout risk", "Get wellness tips", "Talk to someone", "Practice self-care"],
       };
     }
 
-    // GREETINGS
-    if (lowerMessage.match(/^(hi|hello|hey|good morning|good evening)/i)) {
-      const greetings = [
-        `Hi ${userName}! 👋 How can I support your wellness today?`,
-        `Hello ${userName}! Ready to tackle your wellness goals? I'm here to help!`,
-        `Hey ${userName}! 😊 What would you like to do today?`,
-        `Good to see you, ${userName}! How are you feeling today?`,
-      ];
-
+    // Achievements
+    if (msg.match(/achievement|badge|reward|unlock/i)) {
       return {
-        response: greetings[Math.floor(Math.random() * greetings.length)],
+        role: 'assistant',
+        content: `You're making great progress! 🏆 Want to see your achievements and track your wellness journey? I can show you your earned badges and what's coming next!`,
+        timestamp: new Date(),
+        suggestions: ["View achievements", "Check my level", "See my progress", "What badges can I earn?"],
       };
     }
 
-    // HELP / WHAT CAN YOU DO
-    if (lowerMessage.match(/what can you do|help|commands|capabilities/i)) {
+    // Help and capabilities
+    if (msg.match(/help|what can you|how do/i)) {
       return {
-        response: `I'm your wellness companion! Here's what I can do:\n\n💬 **Quick Actions**:\n• "I'm feeling good with energy 4" → Logs mood\n• "I slept 7.5 hours" → Logs sleep\n• "Add task buy groceries" → Creates task\n• "I'm stressed" → Get support\n\n📊 **Info**:\n• "Show my stats" → View progress\n• "How am I doing?" → Get summary\n\n🚀 **Navigate**:\n• "Show achievements" → Your badges\n• "View shifts" → Scheduler\n• "Check circles" → Team page\n\nJust talk naturally - I understand you! 🤖`,
+        role: 'assistant',
+        content: `I can help you with lots of things! Here's what I do best:
+
+🌟 **Track Wellness**: Log mood, sleep, and energy
+📅 **Manage Schedule**: View shifts, add tasks, set reminders
+🔥 **Monitor Burnout**: Check risk levels and get prevention tips
+🏆 **Track Progress**: View achievements and wellness streaks
+💡 **Get Recommendations**: Personalized wellness advice
+🌸 **Cycle Tracking**: Log menstrual health and symptoms
+
+Just chat naturally with me - I'll understand! What would you like help with?`,
+        timestamp: new Date(),
+        suggestions: ["Log my mood", "Check my schedule", "View achievements", "Track sleep"],
       };
     }
 
-    // DEFAULT: Friendly response with tips
-    const responses = [
-      `I'm here to help with your wellness journey! Try asking me to log your mood, track sleep, add tasks, or show your progress. What would you like to do?`,
-      `I didn't quite catch that, but I'm learning! You can ask me to log your mood, track sleep, check your stats, or get wellness tips. What can I help with?`,
-      `Hmm, I'm not sure about that one. But I can help you log mood, track sleep, add tasks, view achievements, or give wellness tips. What sounds good?`,
-    ];
+    // Menstrual health
+    if (msg.match(/period|menstrual|cycle|symptoms|cramps/i)) {
+      return {
+        role: 'assistant',
+        content: `I can help you track your menstrual cycle! 🌸 You can log symptoms, flow, mood changes, and get wellness tips for each phase of your cycle. Would you like to access the cycle tracker?`,
+        timestamp: new Date(),
+        suggestions: ["Open cycle tracker", "Log symptoms", "View cycle tips", "Track my period"],
+      };
+    }
 
+    // Default conversational response
     return {
-      response: responses[Math.floor(Math.random() * responses.length)],
+      role: 'assistant',
+      content: `I'm here to help! I can track your mood, sleep, schedule, and support your wellness journey. Try asking me to:
+      
+• "Log my mood" or "I'm feeling great"
+• "I slept 7 hours" to track sleep
+• "Check my schedule" for upcoming shifts
+• "How's my streak?" for progress
+• "Help" to see everything I can do
+
+What would you like to do?`,
+      timestamp: new Date(),
+      suggestions: ["Log my mood", "Track sleep", "Check schedule", "View progress"],
     };
   };
 
-  const handleSendMessage = async (messageText?: string) => {
-    const userMessage = (messageText || input).trim();
-    if (!userMessage) return;
+  const handleSend = async (messageText?: string) => {
+    const text = messageText || input.trim();
+    if (!text || loading) return;
 
     setInput('');
     setLoading(true);
 
-    const newUserMessage: ConversationItem = {
+    // Add user message
+    const userMessage: Message = {
       role: 'user',
-      content: userMessage,
-      timestamp: new Date().toISOString(),
+      content: text,
+      timestamp: new Date(),
     };
-    setConversation(prev => [...prev, newUserMessage]);
+    setMessages(prev => [...prev, userMessage]);
 
-    try {
-      const { response, action } = await processMessage(userMessage);
+    // Show typing indicator
+    setIsTyping(true);
+    await new Promise(resolve => setTimeout(resolve, 800));
 
-      const assistantMessage: ConversationItem = {
-        role: 'assistant',
-        content: response,
-        timestamp: new Date().toISOString(),
-        action,
-      };
-      setConversation(prev => [...prev, assistantMessage]);
-
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        await supabase.from('ai_conversations').insert({
-          user_id: user.id,
-          message: userMessage,
-          response: response,
-          intent: detectIntent(userMessage),
-        });
-      }
-    } catch (error) {
-      console.error('Error processing message:', error);
-      const errorMessage: ConversationItem = {
-        role: 'assistant',
-        content: 'Sorry, I encountered an error. Please try again!',
-        timestamp: new Date().toISOString(),
-      };
-      setConversation(prev => [...prev, errorMessage]);
-    }
-
+    // Generate response
+    const response = await generateResponse(text);
+    setIsTyping(false);
+    
+    setMessages(prev => [...prev, response]);
     setLoading(false);
   };
 
-  const detectIntent = (message: string): string => {
-    const lowerMessage = message.toLowerCase();
-    if (lowerMessage.includes('mood')) return 'mood_logging';
-    if (lowerMessage.match(/achievement|badge|points/)) return 'achievements';
-    if (lowerMessage.includes('shift')) return 'shift_management';
-    if (lowerMessage.includes('sleep')) return 'sleep_tracking';
-    if (lowerMessage.includes('task')) return 'task_management';
-    if (lowerMessage.match(/burnout|stress/)) return 'burnout_support';
-    return 'general';
+  const handleSuggestionClick = (suggestion: string) => {
+    if (suggestion === "Open mood tracker" || suggestion === "Log my mood") {
+      router.push('/wellness-enhanced');
+    } else if (suggestion === "Open sleep tracker" || suggestion === "Track sleep") {
+      router.push('/wellness-enhanced');
+    } else if (suggestion === "Open scheduler" || suggestion === "Check my schedule") {
+      router.push('/scheduler');
+    } else if (suggestion === "View achievements" || suggestion === "Check my level") {
+      router.push('/achievements');
+    } else if (suggestion === "Check burnout risk") {
+      router.push('/burnout');
+    } else if (suggestion === "Open cycle tracker") {
+      router.push('/menstrual-health');
+    } else {
+      handleSend(suggestion);
+    }
   };
 
-  const quickActions = [
-    { label: '😊 Log my mood', message: 'I want to log my mood', icon: Heart },
-    { label: '😴 Track sleep', message: 'I want to track my sleep', icon: Moon },
-    { label: '📅 Add a shift', message: 'Help me add a new shift', icon: Calendar },
-    { label: '📊 Show my stats', message: 'Show me my stats', icon: Sparkles },
-  ];
-
   return (
-    <div className="h-[calc(100vh-8rem)] flex flex-col space-y-4">
-      <div>
-        <h1 className="text-3xl font-bold flex items-center gap-2">
-          <Sparkles className="h-8 w-8 text-purple-500" />
-          AI Wellness Assistant
-        </h1>
-        <p className="text-gray-600">Your intelligent companion for wellness and productivity</p>
-      </div>
-
-      <Card className="flex-1 flex flex-col">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div>
-              <CardTitle>Chat with Your Assistant</CardTitle>
-              <CardDescription>
-                I can log moods, track sleep, add tasks, and more - just ask naturally!
-              </CardDescription>
+    <div className="h-[calc(100vh-8rem)] flex flex-col">
+      {/* Header */}
+      <Card className="mb-4 border-t-4 border-t-gradient-to-r from-cyan-500 to-purple-500">
+        <CardHeader className="pb-4">
+          <div className="flex items-center gap-3">
+            <div className="p-3 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-full">
+              <Bot className="h-6 w-6 text-white" />
             </div>
-            {listening && (
-              <Badge variant="destructive" className="animate-pulse">
-                🎤 Listening...
-              </Badge>
-            )}
+            <div>
+              <CardTitle className="text-2xl bg-gradient-to-r from-cyan-600 to-purple-600 bg-clip-text text-transparent">
+                CareSync Assistant
+              </CardTitle>
+              <p className="text-sm text-slate-600">Your AI wellness companion 🤖</p>
+            </div>
           </div>
         </CardHeader>
-        <CardContent className="flex-1 flex flex-col">
-          <div className="flex-1 overflow-y-auto mb-4 space-y-4">
-            {conversation.length === 0 ? (
-              <div className="text-center py-12">
-                <div className="text-6xl mb-4">🤖</div>
-                <p className="text-lg font-semibold mb-2">Hi {userName}! How can I help you today?</p>
-                <p className="text-muted-foreground mb-6">
-                  Try asking me to log your mood, track sleep, or show your progress
-                </p>
-                <div className="grid grid-cols-2 gap-3 max-w-md mx-auto">
-                  {quickActions.map((action, idx) => {
-                    const Icon = action.icon;
-                    return (
+      </Card>
+
+      {/* Messages */}
+      <Card className="flex-1 flex flex-col overflow-hidden">
+        <CardContent className="flex-1 overflow-y-auto p-6 space-y-4">
+          {messages.map((message, index) => (
+            <div
+              key={index}
+              className={`flex gap-3 ${message.role === 'user' ? 'justify-end' : 'justify-start'} animate-in slide-in-from-bottom duration-300`}
+            >
+              {message.role === 'assistant' && (
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-500 to-purple-500 flex items-center justify-center flex-shrink-0">
+                  <Bot className="h-5 w-5 text-white" />
+                </div>
+              )}
+              
+              <div className={`max-w-[80%] ${message.role === 'user' ? 'order-first' : ''}`}>
+                <div
+                  className={`rounded-2xl px-4 py-3 ${
+                    message.role === 'user'
+                      ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white'
+                      : 'bg-slate-100 text-slate-800'
+                  }`}
+                >
+                  <p className="whitespace-pre-wrap">{message.content}</p>
+                </div>
+                
+                {message.suggestions && message.suggestions.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    {message.suggestions.map((suggestion, idx) => (
                       <Button
                         key={idx}
                         variant="outline"
-                        className="h-auto py-3"
-                        onClick={() => {
-                          setInput(action.message);
-                          handleSendMessage(action.message);
-                        }}
+                        size="sm"
+                        onClick={() => handleSuggestionClick(suggestion)}
+                        className="text-xs hover:bg-cyan-50 hover:border-cyan-400 transition-all"
                       >
-                        <Icon className="h-4 w-4 mr-2" />
-                        {action.label}
+                        {suggestion}
                       </Button>
-                    );
-                  })}
-                </div>
-              </div>
-            ) : (
-              <>
-                {conversation.map((msg, idx) => (
-                  <div
-                    key={idx}
-                    className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}
-                  >
-                    <div
-                      className={`max-w-[80%] rounded-lg p-4 ${
-                        msg.role === 'user'
-                          ? 'bg-primary text-primary-foreground'
-                          : 'bg-muted'
-                      }`}
-                    >
-                      <p className="whitespace-pre-wrap">{msg.content}</p>
-                      {msg.action && msg.action.type !== 'logged' && (
-                        <Button
-                          variant={msg.role === 'user' ? 'secondary' : 'default'}
-                          size="sm"
-                          className="mt-3"
-                          onClick={() => executeAction(msg.action!.type, msg.action!.data)}
-                        >
-                          <CheckCircle className="h-3 w-3 mr-1" />
-                          {msg.action.label}
-                        </Button>
-                      )}
-                      {msg.action && msg.action.type === 'logged' && (
-                        <Badge variant="secondary" className="mt-2">
-                          <CheckCircle className="h-3 w-3 mr-1" />
-                          {msg.action.label}
-                        </Badge>
-                      )}
-                      <p className="text-xs mt-2 opacity-70">
-                        {format(new Date(msg.timestamp), 'h:mm a')}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-                {loading && (
-                  <div className="flex justify-start">
-                    <div className="max-w-[80%] rounded-lg p-4 bg-muted">
-                      <div className="flex space-x-2">
-                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce"></div>
-                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                        <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                      </div>
-                    </div>
+                    ))}
                   </div>
                 )}
-                <div ref={messagesEndRef} />
-              </>
-            )}
-          </div>
+                
+                <p className="text-xs text-slate-400 mt-1">
+                  {format(message.timestamp, 'h:mm a')}
+                </p>
+              </div>
 
-          <div className="flex gap-2">
+              {message.role === 'user' && (
+                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-violet-500 to-purple-600 flex items-center justify-center flex-shrink-0">
+                  <User className="h-5 w-5 text-white" />
+                </div>
+              )}
+            </div>
+          ))}
+
+          {isTyping && (
+            <div className="flex gap-3 animate-in slide-in-from-bottom duration-300">
+              <div className="w-8 h-8 rounded-full bg-gradient-to-br from-cyan-500 to-purple-500 flex items-center justify-center">
+                <Bot className="h-5 w-5 text-white" />
+              </div>
+              <div className="bg-slate-100 rounded-2xl px-4 py-3">
+                <Loader2 className="h-4 w-4 animate-spin text-slate-600" />
+              </div>
+            </div>
+          )}
+
+          <div ref={messagesEndRef} />
+        </CardContent>
+
+        {/* Input */}
+        <div className="border-t p-4 bg-white">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              handleSend();
+            }}
+            className="flex gap-2"
+          >
             <Input
-              placeholder="Type or use voice... (e.g., 'I slept 7 hours' or 'I'm feeling great')"
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              onKeyPress={(e) => e.key === 'Enter' && !loading && handleSendMessage()}
+              placeholder="Type your message... (e.g., 'I'm feeling great today')"
+              className="flex-1 h-12 text-base"
               disabled={loading}
-              className="flex-1"
             />
             <Button
-              variant="outline"
-              size="icon"
-              onClick={listening ? stopListening : startListening}
-              disabled={!recognition || loading}
-              className={listening ? 'bg-red-50' : ''}
+              type="submit"
+              disabled={loading || !input.trim()}
+              className="h-12 px-6 bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-600 hover:to-blue-700"
             >
-              {listening ? <Square className="h-4 w-4 text-red-500" /> : <Mic className="h-4 w-4" />}
+              <Send className="h-5 w-5" />
             </Button>
-            <Button onClick={() => handleSendMessage()} disabled={loading || !input.trim()}>
-              <Send className="h-4 w-4" />
-            </Button>
-          </div>
-
-          {recognition && (
-            <p className="text-xs text-muted-foreground mt-2 text-center">
-              {listening ? '🎤 Listening... Speak naturally!' : 'Click the microphone or type to chat with me'}
-            </p>
-          )}
-        </CardContent>
+          </form>
+          <p className="text-xs text-slate-500 mt-2 text-center">
+            Tip: Just chat naturally! Say "I slept 7 hours" or "I'm feeling great" 💬
+          </p>
+        </div>
       </Card>
     </div>
   );
