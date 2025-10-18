@@ -157,12 +157,11 @@ export default function ProfilePage() {
       .upsert({
         id: user.id,
         ...profileData,
-        updated_at: new Date().toISOString(),
       });
 
     if (error) {
-      alert('❌ Error saving profile. Please try again.');
-      console.error(error);
+      alert(`❌ Error saving profile: ${error.message}`);
+      console.error('Full error:', error);
     } else {
       alert('✅ Profile saved successfully!');
     }

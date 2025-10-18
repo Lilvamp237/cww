@@ -13,8 +13,21 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "CareSync - Healthcare Team Coordination",
-  description: "Coordinate schedules, track wellness, and collaborate with your healthcare team",
+  title: "CareSync - AI-Powered Healthcare Wellness Platform",
+  description: "Prevent burnout, optimize schedules, and track wellness for healthcare professionals. AI-powered platform built for medical teams.",
+  keywords: ["healthcare", "wellness", "burnout prevention", "shift scheduler", "medical professionals", "nurse wellness", "doctor wellness"],
+  authors: [{ name: "CareSync Team" }],
+  openGraph: {
+    title: "CareSync - Healthcare Wellness Platform",
+    description: "AI-powered wellness and scheduling for healthcare professionals",
+    type: "website",
+  },
+  icons: {
+    icon: [
+      { url: '/logo.svg', type: 'image/svg+xml' },
+    ],
+    apple: '/apple-icon.png',
+  },
 };
 
 export default function RootLayout({

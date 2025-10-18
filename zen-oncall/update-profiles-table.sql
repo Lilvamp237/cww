@@ -3,6 +3,7 @@
 
 -- Add new columns to profiles table
 ALTER TABLE profiles
+ADD COLUMN IF NOT EXISTS full_name TEXT,
 ADD COLUMN IF NOT EXISTS phone_number TEXT,
 ADD COLUMN IF NOT EXISTS date_of_birth DATE,
 ADD COLUMN IF NOT EXISTS medical_profession TEXT,
@@ -20,10 +21,23 @@ ADD COLUMN IF NOT EXISTS emergency_contact_phone TEXT,
 ADD COLUMN IF NOT EXISTS preferred_language TEXT DEFAULT 'English',
 ADD COLUMN IF NOT EXISTS timezone TEXT DEFAULT 'America/New_York';
 
--- Add check constraints
-ALTER TABLE profiles
-ADD CONSTRAINT check_years_experience CHECK (years_of_experience >= 0 AND years_of_experience <= 60),
-ADD CONSTRAINT check_bio_length CHECK (LENGTH(bio) <= 500);
+-- Add check constraints (only if they don't exist)
+DO $$ 
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'check_years_experience'
+  ) THEN
+    ALTER TABLE profiles
+    ADD CONSTRAINT check_years_experience CHECK (years_of_experience >= 0 AND years_of_experience <= 60);
+  END IF;
+  
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_constraint WHERE conname = 'check_bio_length'
+  ) THEN
+    ALTER TABLE profiles
+    ADD CONSTRAINT check_bio_length CHECK (LENGTH(bio) <= 500);
+  END IF;
+END $$;
 
 -- Create index for common searches
 CREATE INDEX IF NOT EXISTS idx_profiles_profession ON profiles(medical_profession);
