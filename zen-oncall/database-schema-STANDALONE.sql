@@ -415,11 +415,19 @@ CREATE POLICY "Users can create circles" ON circles FOR INSERT WITH CHECK (auth.
 -- Circle members policies
 DROP POLICY IF EXISTS "Users can view members in their circles" ON circle_members;
 CREATE POLICY "Users can view members in their circles" ON circle_members FOR SELECT
-USING (EXISTS (SELECT 1 FROM circle_members cm WHERE cm.circle_id = circle_members.circle_id AND cm.user_id = auth.uid()));
+USING (user_id = auth.uid());
 
-DROP POLICY IF EXISTS "Circle owners can manage members" ON circle_members;
-CREATE POLICY "Circle owners can manage members" ON circle_members FOR ALL
-USING (EXISTS (SELECT 1 FROM circle_members WHERE circle_id = circle_members.circle_id AND user_id = auth.uid() AND role IN ('owner', 'admin')));
+DROP POLICY IF EXISTS "Users can join circles" ON circle_members;
+CREATE POLICY "Users can join circles" ON circle_members FOR INSERT
+WITH CHECK (user_id = auth.uid());
+
+DROP POLICY IF EXISTS "Circle owners can update members" ON circle_members;
+CREATE POLICY "Circle owners can update members" ON circle_members FOR UPDATE
+USING (EXISTS (SELECT 1 FROM circle_members cm WHERE cm.circle_id = circle_members.circle_id AND cm.user_id = auth.uid() AND cm.role IN ('owner', 'admin')));
+
+DROP POLICY IF EXISTS "Circle owners can delete members" ON circle_members;
+CREATE POLICY "Circle owners can delete members" ON circle_members FOR DELETE
+USING (EXISTS (SELECT 1 FROM circle_members cm WHERE cm.circle_id = circle_members.circle_id AND cm.user_id = auth.uid() AND cm.role IN ('owner', 'admin')));
 
 -- Shifts policies
 DROP POLICY IF EXISTS "Users can view own shifts" ON shifts;
