@@ -9,31 +9,34 @@
 -- ============================================================================
 
 -- Profiles table (extends auth.users)
--- SKIP IF ALREADY EXISTS - Add role column if missing
+-- Create the table if it doesn't exist
+CREATE TABLE IF NOT EXISTS profiles (
+    id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+    email TEXT,
+    full_name TEXT,
+    avatar_url TEXT,
+    role TEXT DEFAULT 'nurse',
+    specialty TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Add columns if they don't exist (for existing tables)
 DO $$
 BEGIN
-    -- Try to add role column if it doesn't exist
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='profiles' AND column_name='role') THEN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_schema = 'public' 
+                   AND table_name = 'profiles' 
+                   AND column_name = 'role') THEN
         ALTER TABLE profiles ADD COLUMN role TEXT DEFAULT 'nurse';
     END IF;
     
-    -- Try to add specialty column if it doesn't exist
-    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='profiles' AND column_name='specialty') THEN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_schema = 'public' 
+                   AND table_name = 'profiles' 
+                   AND column_name = 'specialty') THEN
         ALTER TABLE profiles ADD COLUMN specialty TEXT;
     END IF;
-EXCEPTION
-    WHEN undefined_table THEN
-        -- Table doesn't exist, create it
-        CREATE TABLE profiles (
-            id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-            email TEXT,
-            full_name TEXT,
-            avatar_url TEXT,
-            role TEXT DEFAULT 'nurse',
-            specialty TEXT,
-            created_at TIMESTAMPTZ DEFAULT NOW(),
-            updated_at TIMESTAMPTZ DEFAULT NOW()
-        );
 END $$;
 
 -- Circles (teams/groups)
@@ -41,10 +44,27 @@ CREATE TABLE IF NOT EXISTS circles (
     id BIGSERIAL PRIMARY KEY,
     name TEXT NOT NULL,
     description TEXT,
+    invite_code TEXT UNIQUE,
     created_by UUID REFERENCES auth.users(id) ON DELETE SET NULL,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Add invite_code if missing (for existing tables)
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_schema = 'public' 
+                   AND table_name = 'circles' 
+                   AND column_name = 'invite_code') THEN
+        ALTER TABLE circles ADD COLUMN invite_code TEXT UNIQUE;
+    END IF;
+END $$;
+
+-- Generate invite codes for existing circles
+UPDATE circles 
+SET invite_code = substring(md5(random()::text || clock_timestamp()::text) from 1 for 8)
+WHERE invite_code IS NULL;
 
 -- Circle members
 CREATE TABLE IF NOT EXISTS circle_members (
@@ -52,8 +72,60 @@ CREATE TABLE IF NOT EXISTS circle_members (
     circle_id BIGINT REFERENCES circles(id) ON DELETE CASCADE NOT NULL,
     user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
     role TEXT DEFAULT 'member' CHECK (role IN ('owner', 'admin', 'member')),
+    share_shifts BOOLEAN DEFAULT TRUE,
+    share_status BOOLEAN DEFAULT TRUE,
     joined_at TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE(circle_id, user_id)
+);
+
+-- Add missing columns if they don't exist (for existing tables)
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_schema = 'public' 
+                   AND table_name = 'circle_members' 
+                   AND column_name = 'role') THEN
+        ALTER TABLE circle_members ADD COLUMN role TEXT DEFAULT 'member' CHECK (role IN ('owner', 'admin', 'member'));
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_schema = 'public' 
+                   AND table_name = 'circle_members' 
+                   AND column_name = 'share_shifts') THEN
+        ALTER TABLE circle_members ADD COLUMN share_shifts BOOLEAN DEFAULT TRUE;
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_schema = 'public' 
+                   AND table_name = 'circle_members' 
+                   AND column_name = 'share_status') THEN
+        ALTER TABLE circle_members ADD COLUMN share_status BOOLEAN DEFAULT TRUE;
+    END IF;
+END $$;
+
+-- Circle announcements (for posting updates to circles)
+CREATE TABLE IF NOT EXISTS circle_announcements (
+    id BIGSERIAL PRIMARY KEY,
+    circle_id BIGINT REFERENCES circles(id) ON DELETE CASCADE NOT NULL,
+    author_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+    title TEXT NOT NULL,
+    content TEXT NOT NULL,
+    priority TEXT DEFAULT 'normal' CHECK (priority IN ('low', 'normal', 'high', 'urgent')),
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Shift swaps (for requesting shift swaps within circles)
+CREATE TABLE IF NOT EXISTS shift_swaps (
+    id BIGSERIAL PRIMARY KEY,
+    circle_id BIGINT REFERENCES circles(id) ON DELETE CASCADE NOT NULL,
+    requester_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+    requester_shift_id BIGINT REFERENCES shifts(id) ON DELETE CASCADE NOT NULL,
+    target_shift_id BIGINT REFERENCES shifts(id) ON DELETE SET NULL,
+    message TEXT,
+    response_message TEXT,
+    status TEXT DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'declined', 'cancelled')),
+    responded_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- Shifts table
@@ -92,13 +164,39 @@ CREATE TABLE IF NOT EXISTS mood_logs (
     id BIGSERIAL PRIMARY KEY,
     user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
     log_date DATE NOT NULL,
-    mood INTEGER CHECK (mood >= 1 AND mood <= 5) NOT NULL,
+    mood INTEGER CHECK (mood >= 1 AND mood <= 5),
+    mood_score INTEGER CHECK (mood_score >= 1 AND mood_score <= 5),
     energy_level INTEGER CHECK (energy_level >= 1 AND energy_level <= 5),
     stress_level INTEGER CHECK (stress_level >= 1 AND stress_level <= 5),
     notes TEXT,
+    journal_entry TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     UNIQUE(user_id, log_date)
 );
+
+-- Add missing columns and fix constraints (for existing tables)
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_schema = 'public' 
+                   AND table_name = 'mood_logs' 
+                   AND column_name = 'journal_entry') THEN
+        ALTER TABLE mood_logs ADD COLUMN journal_entry TEXT;
+    END IF;
+    
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_schema = 'public' 
+                   AND table_name = 'mood_logs' 
+                   AND column_name = 'mood_score') THEN
+        ALTER TABLE mood_logs ADD COLUMN mood_score INTEGER CHECK (mood_score >= 1 AND mood_score <= 5);
+    END IF;
+    
+    -- Remove NOT NULL constraint from mood column (since app uses mood_score)
+    ALTER TABLE mood_logs ALTER COLUMN mood DROP NOT NULL;
+END $$;
+
+-- Copy mood values to mood_score if mood_score is null
+UPDATE mood_logs SET mood_score = mood WHERE mood_score IS NULL;
 
 -- Habits table
 CREATE TABLE IF NOT EXISTS habits (
@@ -162,32 +260,6 @@ CREATE TABLE IF NOT EXISTS sos_logs (
     notes TEXT,
     status TEXT DEFAULT 'active' CHECK (status IN ('active', 'resolved', 'cancelled')),
     resolved_at TIMESTAMPTZ
-);
-
--- ============================================================================
--- CYCLE AWARENESS
--- ============================================================================
-
-CREATE TABLE IF NOT EXISTS cycle_tracking (
-    id BIGSERIAL PRIMARY KEY,
-    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL UNIQUE,
-    tracking_enabled BOOLEAN DEFAULT FALSE,
-    cycle_start_date DATE,
-    cycle_length INTEGER DEFAULT 28 CHECK (cycle_length >= 21 AND cycle_length <= 40),
-    period_length INTEGER DEFAULT 5 CHECK (period_length >= 1 AND period_length <= 10),
-    last_updated TIMESTAMPTZ DEFAULT NOW(),
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);
-
-CREATE TABLE IF NOT EXISTS cycle_logs (
-    id BIGSERIAL PRIMARY KEY,
-    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
-    log_date DATE NOT NULL,
-    phase TEXT CHECK (phase IN ('menstrual', 'follicular', 'ovulation', 'luteal')),
-    symptoms TEXT[],
-    notes TEXT,
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    UNIQUE(user_id, log_date)
 );
 
 -- ============================================================================
@@ -305,8 +377,20 @@ CREATE TABLE IF NOT EXISTS recommendations (
     based_on TEXT,
     accepted BOOLEAN,
     dismissed BOOLEAN DEFAULT FALSE,
+    expires_at TIMESTAMPTZ,
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
+
+-- Add expires_at column if missing (for existing tables)
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns 
+                   WHERE table_schema = 'public' 
+                   AND table_name = 'recommendations' 
+                   AND column_name = 'expires_at') THEN
+        ALTER TABLE recommendations ADD COLUMN expires_at TIMESTAMPTZ;
+    END IF;
+END $$;
 
 CREATE TABLE IF NOT EXISTS routine_templates (
     id BIGSERIAL PRIMARY KEY,
@@ -332,7 +416,6 @@ CREATE TABLE IF NOT EXISTS user_preferences (
     feature_circles BOOLEAN DEFAULT TRUE,
     feature_wellness BOOLEAN DEFAULT TRUE,
     feature_assistant BOOLEAN DEFAULT TRUE,
-    feature_cycle_tracking BOOLEAN DEFAULT FALSE,
     feature_gamification BOOLEAN DEFAULT TRUE,
     feature_analytics BOOLEAN DEFAULT TRUE,
     theme TEXT DEFAULT 'system' CHECK (theme IN ('light', 'dark', 'system')),
@@ -371,6 +454,8 @@ CREATE TABLE IF NOT EXISTS weekly_summaries (
 ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE circles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE circle_members ENABLE ROW LEVEL SECURITY;
+ALTER TABLE circle_announcements ENABLE ROW LEVEL SECURITY;
+ALTER TABLE shift_swaps ENABLE ROW LEVEL SECURITY;
 ALTER TABLE shifts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE personal_tasks ENABLE ROW LEVEL SECURITY;
 ALTER TABLE mood_logs ENABLE ROW LEVEL SECURITY;
@@ -379,8 +464,6 @@ ALTER TABLE habit_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE sleep_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE fatigue_alerts ENABLE ROW LEVEL SECURITY;
 ALTER TABLE sos_logs ENABLE ROW LEVEL SECURITY;
-ALTER TABLE cycle_tracking ENABLE ROW LEVEL SECURITY;
-ALTER TABLE cycle_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE notifications ENABLE ROW LEVEL SECURITY;
 ALTER TABLE notification_preferences ENABLE ROW LEVEL SECURITY;
 ALTER TABLE badges ENABLE ROW LEVEL SECURITY;
@@ -415,11 +498,37 @@ CREATE POLICY "Users can create circles" ON circles FOR INSERT WITH CHECK (auth.
 -- Circle members policies
 DROP POLICY IF EXISTS "Users can view members in their circles" ON circle_members;
 CREATE POLICY "Users can view members in their circles" ON circle_members FOR SELECT
-USING (EXISTS (SELECT 1 FROM circle_members cm WHERE cm.circle_id = circle_members.circle_id AND cm.user_id = auth.uid()));
+USING (user_id = auth.uid() OR EXISTS (SELECT 1 FROM circle_members cm WHERE cm.circle_id = circle_members.circle_id AND cm.user_id = auth.uid()));
 
 DROP POLICY IF EXISTS "Circle owners can manage members" ON circle_members;
 CREATE POLICY "Circle owners can manage members" ON circle_members FOR ALL
-USING (EXISTS (SELECT 1 FROM circle_members WHERE circle_id = circle_members.circle_id AND user_id = auth.uid() AND role IN ('owner', 'admin')));
+USING (EXISTS (SELECT 1 FROM circle_members cm WHERE cm.circle_id = circle_members.circle_id AND cm.user_id = auth.uid() AND cm.role IN ('owner', 'admin')));
+
+DROP POLICY IF EXISTS "Users can join circles" ON circle_members;
+CREATE POLICY "Users can join circles" ON circle_members FOR INSERT
+WITH CHECK (user_id = auth.uid());
+
+-- Circle announcements policies
+DROP POLICY IF EXISTS "Circle members can view announcements" ON circle_announcements;
+CREATE POLICY "Circle members can view announcements" ON circle_announcements FOR SELECT
+USING (EXISTS (SELECT 1 FROM circle_members WHERE circle_members.circle_id = circle_announcements.circle_id AND circle_members.user_id = auth.uid()));
+
+DROP POLICY IF EXISTS "Circle members can create announcements" ON circle_announcements;
+CREATE POLICY "Circle members can create announcements" ON circle_announcements FOR INSERT
+WITH CHECK (EXISTS (SELECT 1 FROM circle_members WHERE circle_members.circle_id = circle_announcements.circle_id AND circle_members.user_id = auth.uid()));
+
+-- Shift swaps policies
+DROP POLICY IF EXISTS "Circle members can view shift swaps" ON shift_swaps;
+CREATE POLICY "Circle members can view shift swaps" ON shift_swaps FOR SELECT
+USING (EXISTS (SELECT 1 FROM circle_members WHERE circle_members.circle_id = shift_swaps.circle_id AND circle_members.user_id = auth.uid()));
+
+DROP POLICY IF EXISTS "Circle members can create shift swaps" ON shift_swaps;
+CREATE POLICY "Circle members can create shift swaps" ON shift_swaps FOR INSERT
+WITH CHECK (EXISTS (SELECT 1 FROM circle_members WHERE circle_members.circle_id = shift_swaps.circle_id AND circle_members.user_id = auth.uid()));
+
+DROP POLICY IF EXISTS "Users can update own shift swap requests" ON shift_swaps;
+CREATE POLICY "Users can update own shift swap requests" ON shift_swaps FOR UPDATE
+USING (auth.uid() = requester_id OR EXISTS (SELECT 1 FROM shifts WHERE shifts.id = shift_swaps.target_shift_id AND shifts.user_id = auth.uid()));
 
 -- Shifts policies
 DROP POLICY IF EXISTS "Users can view own shifts" ON shifts;
@@ -462,14 +571,6 @@ CREATE POLICY "Users can manage own fatigue alerts" ON fatigue_alerts FOR ALL US
 DROP POLICY IF EXISTS "Users can manage own SOS logs" ON sos_logs;
 CREATE POLICY "Users can manage own SOS logs" ON sos_logs FOR ALL USING (auth.uid() = user_id);
 
--- Cycle tracking policies
-DROP POLICY IF EXISTS "Users can manage own cycle tracking" ON cycle_tracking;
-CREATE POLICY "Users can manage own cycle tracking" ON cycle_tracking FOR ALL USING (auth.uid() = user_id);
-
--- Cycle logs policies
-DROP POLICY IF EXISTS "Users can manage own cycle logs" ON cycle_logs;
-CREATE POLICY "Users can manage own cycle logs" ON cycle_logs FOR ALL USING (auth.uid() = user_id);
-
 -- Notifications policies
 DROP POLICY IF EXISTS "Users can view own notifications" ON notifications;
 CREATE POLICY "Users can view own notifications" ON notifications FOR SELECT USING (auth.uid() = user_id);
@@ -499,11 +600,11 @@ CREATE POLICY "Users can manage own wellness points" ON wellness_points FOR ALL 
 -- Team challenges policies
 DROP POLICY IF EXISTS "Circle members can view challenges" ON team_challenges;
 CREATE POLICY "Circle members can view challenges" ON team_challenges FOR SELECT
-USING (EXISTS (SELECT 1 FROM circle_members WHERE circle_members.circle_id = team_challenges.circle_id AND circle_members.user_id = auth.uid()));
+USING (EXISTS (SELECT 1 FROM circle_members cm WHERE cm.circle_id = team_challenges.circle_id AND cm.user_id = auth.uid()));
 
 DROP POLICY IF EXISTS "Circle admins can manage challenges" ON team_challenges;
 CREATE POLICY "Circle admins can manage challenges" ON team_challenges FOR ALL
-USING (EXISTS (SELECT 1 FROM circle_members WHERE circle_members.circle_id = team_challenges.circle_id AND circle_members.user_id = auth.uid() AND circle_members.role IN ('owner', 'admin')));
+USING (EXISTS (SELECT 1 FROM circle_members cm WHERE cm.circle_id = team_challenges.circle_id AND cm.user_id = auth.uid() AND cm.role IN ('owner', 'admin')));
 
 -- Challenge participants policies
 DROP POLICY IF EXISTS "Users can manage own challenge participation" ON challenge_participants;
@@ -553,7 +654,8 @@ CREATE INDEX IF NOT EXISTS idx_mood_logs_user_date ON mood_logs(user_id, log_dat
 CREATE INDEX IF NOT EXISTS idx_habit_logs_habit_date ON habit_logs(habit_id, log_date DESC);
 CREATE INDEX IF NOT EXISTS idx_sleep_logs_user_date ON sleep_logs(user_id, log_date DESC);
 CREATE INDEX IF NOT EXISTS idx_notifications_user_read ON notifications(user_id, read, created_at DESC);
-CREATE INDEX IF NOT EXISTS idx_cycle_logs_user_date ON cycle_logs(user_id, log_date DESC);
+CREATE INDEX IF NOT EXISTS idx_circle_announcements_circle ON circle_announcements(circle_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_shift_swaps_circle ON shift_swaps(circle_id, status, created_at DESC);
 
 -- ============================================================================
 -- VERIFICATION - Check that all tables were created
